@@ -1,5 +1,4 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// prisma/schema.prisma
 
 generator client {
   provider = "prisma-client-js"
@@ -10,11 +9,41 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ADICIONE ESTE BLOCO
+// Modelo para os Campi da Universidade
+model Campus {
+  id    Int    @id @default(autoincrement())
+  name  String @unique // Ex: "Chapecó", "São Miguel do Oeste"
+  city  String
+
+  // Relação: Um campus pode ter vários usuários (professores)
+  users User[]
+}
+
+// Modelo para os Usuários (Professores e Admins)
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
-  name      String?
+  name      String
   password  String
   createdAt DateTime @default(now())
+
+  // --- Nossas Novas Regras de Negócio ---
+  role      UserRole   @default(PROFESSOR) // Define o papel do usuário
+  status    UserStatus @default(ACTIVE)    // Define se a conta está ativa
+
+  // Relação: Todo usuário PERTENCE a um campus
+  campusId  Int
+  campus    Campus     @relation(fields: [campusId], references: [id])
+}
+
+// Enum para os Papéis de Usuário (evita erros de digitação)
+enum UserRole {
+  PROFESSOR
+  ADMIN
+}
+
+// Enum para o Status do Usuário
+enum UserStatus {
+  ACTIVE   // Pode usar o sistema
+  INACTIVE // Conta desativada
 }
