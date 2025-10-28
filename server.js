@@ -5,6 +5,7 @@ const cors = require('cors');
 // --- 1. Importar as rotas de autenticação ---
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin'); 
+const alunoRoutes = require('./routes/alunos'); 
 
 const app = express();
 const PORT = process.env.PORT || 3333;
@@ -23,6 +24,7 @@ app.get('/', (req, res) => {
 // Todas as rotas definidas em 'authRoutes' terão o prefixo '/api/auth'
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes); 
+app.use('/api/alunos', alunoRoutes); 
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);

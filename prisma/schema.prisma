@@ -9,41 +9,80 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Modelo para os Campi da Universidade
 model Campus {
-  id    Int    @id @default(autoincrement())
-  name  String @unique // Ex: "Chapecó", "São Miguel do Oeste"
-  city  String
-
-  // Relação: Um campus pode ter vários usuários (professores)
-  users User[]
+  id     Int    @id @default(autoincrement())
+  name   String @unique
+  city   String
+  users  User[]
+  alunos Aluno[]
 }
 
-// Modelo para os Usuários (Professores e Admins)
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  name      String
-  password  String
-  createdAt DateTime @default(now())
-
-  // --- Nossas Novas Regras de Negócio ---
-  role      UserRole   @default(PROFESSOR) // Define o papel do usuário
-  status    UserStatus @default(ACTIVE)    // Define se a conta está ativa
-
-  // Relação: Todo usuário PERTENCE a um campus
-  campusId  Int
-  campus    Campus     @relation(fields: [campusId], references: [id])
+  id                Int        @id @default(autoincrement())
+  email             String     @unique
+  name              String
+  password          String
+  createdAt         DateTime   @default(now())
+  role              UserRole   @default(PROFESSOR)
+  status            UserStatus @default(ACTIVE)
+  campusId          Int
+  campus            Campus     @relation(fields: [campusId], references: [id])
+  alunosCadastrados Aluno[]    @relation("ProfessorAlunos")
 }
 
-// Enum para os Papéis de Usuário (evita erros de digitação)
 enum UserRole {
   PROFESSOR
   ADMIN
 }
 
-// Enum para o Status do Usuário
 enum UserStatus {
-  ACTIVE   // Pode usar o sistema
-  INACTIVE // Conta desativada
+  ACTIVE
+  INACTIVE
+}
+
+model Aluno {
+  id             Int            @id @default(autoincrement())
+  nome           String
+  email          String         @unique
+  dataNasc       DateTime
+  matricula      String         @unique
+  cpf            String?
+  genero         String?
+  telefone       String?
+  observacoes    String?        @db.Text
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  anamneseStatus AnamneseStatus @default(PENDING)
+  anamneseSentAt DateTime?
+  campusId       Int
+  campus         Campus         @relation(fields: [campusId], references: [id])
+  professorId    Int
+  professor      User           @relation("ProfessorAlunos", fields: [professorId], references: [id])
+  avaliacoes     Avaliacao[]
+  documentos     Documento[]
+}
+
+enum AnamneseStatus {
+  PENDING
+  SENT
+  COMPLETED
+}
+
+model Avaliacao {
+  id         Int      @id @default(autoincrement())
+  data       DateTime @default(now())
+  tipo       String
+  resultados Json
+  alunoId    Int
+  aluno      Aluno    @relation(fields: [alunoId], references: [id])
+}
+
+model Documento {
+  id       Int      @id @default(autoincrement())
+  nome     String
+  tipo     String
+  url      String
+  uploadAt DateTime @default(now())
+  alunoId  Int
+  aluno    Aluno    @relation(fields: [alunoId], references: [id])
 }
