@@ -40,26 +40,53 @@ enum UserStatus {
   INACTIVE
 }
 
+// DENTRO DE prisma/schema.prisma
+
 model Aluno {
-  id             Int            @id @default(autoincrement())
-  nome           String
-  email          String         @unique
-  dataNasc       DateTime
-  matricula      String         @unique
-  cpf            String?
-  genero         String?
-  telefone       String?
-  observacoes    String?        @db.Text
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  anamneseStatus AnamneseStatus @default(PENDING)
-  anamneseSentAt DateTime?
-  campusId       Int
-  campus         Campus         @relation(fields: [campusId], references: [id])
-  professorId    Int
-  professor      User           @relation("ProfessorAlunos", fields: [professorId], references: [id])
-  avaliacoes     Avaliacao[]
-  documentos     Documento[]
+  id          Int      @id @default(autoincrement())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  status      AlunoStatus @default(ATIVO) // <-- CAMPO ADICIONADO
+
+  // --- Dados de Identificação ---
+  nome        String
+  email       String   @unique
+  dataNasc    DateTime
+  matricula   String   @unique
+  cpf         String?
+  genero      String?
+  telefone    String?
+
+  // --- Dados Antropométricos (os mais recentes) ---
+  altura      Float?
+  peso        Float?
+
+  // --- Anamnese e Histórico ---
+  objetivos         String? @db.Text
+  historicoMedico   String? @db.Text
+  medicamentosEmUso String? @db.Text
+  habitos           String? @db.Text
+  observacoes       String? @db.Text
+
+  // --- Controle de Fluxo ---
+  anamneseStatus  AnamneseStatus @default(PENDING)
+  anamneseSentAt  DateTime?
+
+  // --- Relacionamentos ---
+  campusId    Int
+  campus      Campus @relation(fields: [campusId], references: [id])
+  professorId Int
+  professor   User   @relation("ProfessorAlunos", fields: [professorId], references: [id])
+  
+  avaliacoes  Avaliacao[]
+  documentos  Documento[]
+}
+
+// NOVO ENUM PARA O STATUS DO ALUNO
+enum AlunoStatus {
+  ATIVO
+  INATIVO
 }
 
 enum AnamneseStatus {
@@ -74,7 +101,7 @@ model Avaliacao {
   tipo       String
   resultados Json
   alunoId    Int
-  aluno      Aluno    @relation(fields: [alunoId], references: [id])
+  aluno      Aluno    @relation(fields: [alunoId], references: [id], onDelete: Cascade)
 }
 
 model Documento {
@@ -84,5 +111,5 @@ model Documento {
   url      String
   uploadAt DateTime @default(now())
   alunoId  Int
-  aluno    Aluno    @relation(fields: [alunoId], references: [id])
+  aluno    Aluno    @relation(fields: [alunoId], references: [id], onDelete: Cascade)
 }

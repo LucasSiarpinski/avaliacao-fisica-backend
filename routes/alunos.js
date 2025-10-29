@@ -1,127 +1,183 @@
-// app/(main)/alunos/page.js
+// routes/alunos.js
 
-"use client";
+const express = require('express');
+const { PrismaClient } = require('@prisma/client');
+const { authenticateToken } = require('../middlewares/authMiddleware');
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation'; // <-- 1. PRECISAMOS IMPORTAR O HOOK
-import { toast } from 'react-hot-toast';
-import styles from './alunos.module.css';
-// O modal não é mais usado aqui, podemos remover o import se quisermos
-// import AlunoModal from '@/components/AlunoModal'; 
-import { useAuth } from '../../../contexts/AuthContext';
-import api from '../../../services/api';
+const router = express.Router();
+const prisma = new PrismaClient();
 
-export default function AlunosPage() {
-  const router = useRouter(); // <-- 2. PRECISAMOS INICIAR O ROUTER AQUI
-
-  const [alunos, setAlunos] = useState([]);
-  const [loading, setLoading] = useState(true);
+// --- ROTA PARA CRIAR UM NOVO ALUNO (VERSÃO COMPLETA) ---
+router.post('/', authenticateToken, async (req, res) => {
+  // Agora pegamos TODOS os campos possíveis do body
+  const { 
+    nome, email, dataNasc, matricula, cpf, genero, telefone,
+    altura, peso, objetivos, historicoMedico, medicamentosEmUso, habitos, observacoes 
+  } = req.body;
   
-  // Seus estados de busca
-  const [termoBusca, setTermoBusca] = useState('');
-  const [categoriaBusca, setCategoriaBusca] = useState('nome');
+  const professorLogado = req.user;
 
-  const { isAuthenticated } = useAuth();
+  // A validação continua a mesma para os campos essenciais
+  if (!nome || !email || !dataNasc || !matricula) {
+    return res.status(400).json({ error: 'Nome, email, data de nascimento e matrícula são obrigatórios.' });
+  }
 
-  const fetchAlunos = async () => {
-    try {
-      setLoading(true);
-      const response = await api.get('/alunos');
-      setAlunos(response.data);
-    } catch (error) {
-      console.error("Erro ao buscar alunos:", error);
-      toast.error("Não foi possível carregar a lista de alunos.");
-    } finally {
-      setLoading(false);
+  try {
+    const novoAluno = await prisma.aluno.create({
+      data: {
+        nome, email, dataNasc: new Date(dataNasc), matricula, cpf, genero, telefone,
+        // Converte para Float ou define como null se não for enviado
+        altura: altura ? parseFloat(altura) : null,
+        peso: peso ? parseFloat(peso) : null,
+        objetivos, historicoMedico, medicamentosEmUso, habitos, observacoes,
+        
+        // As conexões continuam as mesmas
+        professorId: professorLogado.id,
+        campusId: professorLogado.campusId,
+      },
+    });
+    res.status(201).json(novoAluno);
+  } catch (error) {
+    if (error.code === 'P2002') { // Erro de campo único (email ou matrícula)
+      return res.status(400).json({ error: 'Este email ou matrícula já está em uso.' });
     }
-  };
+    console.error('Erro ao criar aluno:', error);
+    res.status(500).json({ error: 'Não foi possível criar o aluno.' });
+  }
+});
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchAlunos();
+// --- ROTA PARA LISTAR OS ALUNOS DO PROFESSOR LOGADO ---
+router.get('/', authenticateToken, async (req, res) => {
+  const professorId = req.user.id;
+  try {
+    const alunos = await prisma.aluno.findMany({
+      where: { professorId: professorId },
+      orderBy: { nome: 'asc' },
+    });
+    res.json(alunos);
+  } catch (error) {
+    console.error('Erro ao listar alunos:', error);
+    res.status(500).json({ error: 'Não foi possível buscar os alunos.' });
+  }
+});
+
+// --- ROTA PARA BUSCAR UM ALUNO ESPECÍFICO PELO ID ---
+router.get('/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const professorId = req.user.id;
+  try {
+    const aluno = await prisma.aluno.findUnique({
+      where: { id: parseInt(id), professorId: professorId },
+    });
+    if (!aluno) {
+      return res.status(404).json({ error: "Aluno não encontrado ou não pertence a este professor." });
     }
-  }, [isAuthenticated]);
+    res.json(aluno);
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao buscar aluno." });
+  }
+});
 
-  const alunosFiltrados = alunos.filter(aluno => {
-    if (!termoBusca) return true;
-    const buscaLowerCase = termoBusca.toLowerCase();
-    switch (categoriaBusca) {
-      case 'id': return String(aluno.id).includes(termoBusca);
-      case 'matricula': return String(aluno.matricula).toLowerCase().includes(buscaLowerCase);
-      case 'cpf': return aluno.cpf?.includes(termoBusca);
-      case 'nome': default: return aluno.nome.toLowerCase().includes(buscaLowerCase);
+// --- ROTA PARA ATUALIZAR UM ALUNO ---
+router.put('/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const professorId = req.user.id;
+  const dataToUpdate = req.body;
+
+  // --- A CORREÇÃO ESTÁ AQUI ---
+  
+  // 1. Converte a data de nascimento, se ela foi enviada
+  if (dataToUpdate.dataNasc && typeof dataToUpdate.dataNasc === 'string') {
+    dataToUpdate.dataNasc = new Date(dataToUpdate.dataNasc);
+  }
+
+  // 2. Converte a ALTURA para Float, se ela foi enviada
+  if (dataToUpdate.altura && typeof dataToUpdate.altura === 'string') {
+    dataToUpdate.altura = parseFloat(dataToUpdate.altura);
+  } else if (dataToUpdate.altura === '') {
+    // Se o campo for enviado vazio, garanta que ele vire null
+    dataToUpdate.altura = null;
+  }
+
+  // 3. Converte o PESO para Float, se ele foi enviado
+  if (dataToUpdate.peso && typeof dataToUpdate.peso === 'string') {
+    dataToUpdate.peso = parseFloat(dataToUpdate.peso);
+  } else if (dataToUpdate.peso === '') {
+    dataToUpdate.peso = null;
+  }
+
+  try {
+    const alunoExistente = await prisma.aluno.findFirst({
+      where: { id: parseInt(id), professorId: professorId },
+    });
+    
+    if (!alunoExistente) {
+      return res.status(404).json({ error: "Permissão negada. Aluno não encontrado." });
     }
-  });
 
-  return (
-    <div className={styles.container}>
-      <header className={styles.header}>
-        <h1 className={styles.title}>Gerenciamento de Alunos</h1>
-        {/* Agora este botão vai funcionar, pois a variável 'router' existe */}
-        <button onClick={() => router.push('/alunos/novo')} className={styles.newStudentButton}>
-          + Novo Aluno
-        </button>
-      </header>
-      
-      {/* Container de Busca */}
-      <div className={styles.searchContainer}>
-        <select
-          className={styles.searchCategory}
-          value={categoriaBusca}
-          onChange={(e) => setCategoriaBusca(e.target.value)}
-        >
-          <option value="nome">Nome</option>
-          <option value="id">ID</option>
-          <option value="matricula">Matrícula</option>
-          <option value="cpf">CPF</option>
-        </select>
-        <input
-          type="text"
-          placeholder={`Buscar por ${categoriaBusca}...`}
-          className={styles.searchBar}
-          value={termoBusca}
-          onChange={(e) => setTermoBusca(e.target.value)}
-        />
-      </div>
+    const alunoAtualizado = await prisma.aluno.update({
+      where: { id: parseInt(id) },
+      data: dataToUpdate,
+    });
+    res.json(alunoAtualizado);
+  } catch (error) {
+    console.error("Erro ao atualizar aluno:", error);
+    res.status(500).json({ error: "Erro ao atualizar aluno." });
+  }
+});
 
-      {/* Container da Tabela */}
-      <div className={styles.tableContainer}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Matrícula</th>
-              <th>Nome Completo</th>
-              <th>CPF</th>
-              <th>Status Anamnese</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan="6">Carregando alunos...</td></tr>
-            ) : alunosFiltrados.length === 0 ? (
-              <tr><td colSpan="6">Nenhum aluno encontrado. Clique em "+ Novo Aluno" para começar.</td></tr>
-            ) : (
-              alunosFiltrados.map((aluno) => (
-                <tr key={aluno.id}>
-                  <td>{aluno.id}</td>
-                  <td>{aluno.matricula}</td>
-                  <td>{aluno.nome}</td>
-                  <td>{aluno.cpf || 'N/A'}</td>
-                  <td>{aluno.anamneseStatus}</td>
-                  <td>
-                    <div className={styles.actions}>
-                      <button className={`${styles.actionButton} ${styles.editButton}`}>Editar</button>
-                      <button className={`${styles.actionButton} ${styles.deleteButton}`}>Excluir</button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
+// --- ROTA PARA EXCLUIR UM ALUNO ---
+router.delete('/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const professorId = req.user.id;
+  try {
+    const alunoExistente = await prisma.aluno.findFirst({
+      where: { id: parseInt(id), professorId: professorId },
+    });
+    if (!alunoExistente) {
+      return res.status(404).json({ error: "Permissão negada. Aluno não encontrado." });
+    }
+    await prisma.aluno.delete({
+      where: { id: parseInt(id) },
+    });
+    res.status(204).send();
+  } catch (error) {
+    console.error("Erro ao excluir aluno:", error);
+    res.status(500).json({ error: "Erro ao excluir aluno." });
+  }
+});
+
+// --- ROTA PARA ALTERAR O STATUS DE UM ALUNO ---
+// Usamos PATCH porque é uma atualização parcial
+router.patch('/:id/status', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body; // O frontend nos enviará o novo status: "ATIVO" ou "INATIVO"
+  const professorId = req.user.id;
+
+  // Validação: garante que o status enviado é válido
+  if (status !== 'ATIVO' && status !== 'INATIVO') {
+    return res.status(400).json({ error: 'Status inválido.' });
+  }
+
+  try {
+    // Verifica se o aluno pertence ao professor logado
+    const alunoExistente = await prisma.aluno.findFirst({
+      where: { id: parseInt(id), professorId: professorId },
+    });
+    if (!alunoExistente) {
+      return res.status(404).json({ error: "Permissão negada. Aluno não encontrado." });
+    }
+
+    // Atualiza APENAS o campo de status
+    const alunoAtualizado = await prisma.aluno.update({
+      where: { id: parseInt(id) },
+      data: { status: status },
+    });
+    res.json(alunoAtualizado);
+  } catch (error) {
+    console.error("Erro ao atualizar status do aluno:", error);
+    res.status(500).json({ error: "Erro ao atualizar status do aluno." });
+  }
+});
+
+module.exports = router;
