@@ -6,9 +6,8 @@ const JWT_SECRET = process.env.JWT_SECRET || 'meu-tcc-super-secreto-2025';
 
 // Middleware para verificar a AUTENTICAÇÃO (se o token é válido)
 async function authenticateToken(req, res, next) {
-  // O token geralmente vem no cabeçalho 'Authorization' no formato 'Bearer TOKEN'
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+// Agora lemos o token diretamente do cookie que o backend enviou
+  const token = req.cookies['auth-token']; // O nome 'auth-token' deve ser o mesmo que você definiu no res.cookie
 
   if (token == null) {
     // Se não há token, o acesso é não autorizado

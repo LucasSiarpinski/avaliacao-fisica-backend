@@ -1,8 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser'); // <-- NOVO: Importar o cookie-parser
 
-// --- 1. Importar as rotas de autenticação ---
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin'); 
 const alunoRoutes = require('./routes/alunos'); 
@@ -10,8 +10,18 @@ const alunoRoutes = require('./routes/alunos');
 const app = express();
 const PORT = process.env.PORT || 3333;
 
-app.use(cors());
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://192.168.1.21:3000' // Adicionamos o seu IP local aqui
+];
+
+app.use(cors({
+  origin: allowedOrigins, // Usamos a lista aqui
+  credentials: true,
+}));
+
 app.use(express.json());
+app.use(cookieParser()); // <-- NOVO: Usar o cookie-parser antes das rotas
 
 app.get('/', (req, res) => {
   res.json({ 
@@ -20,8 +30,6 @@ app.get('/', (req, res) => {
   });
 });
 
-// --- 2. Conectar as rotas ---
-// Todas as rotas definidas em 'authRoutes' terão o prefixo '/api/auth'
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes); 
 app.use('/api/alunos', alunoRoutes); 

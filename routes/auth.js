@@ -1,4 +1,3 @@
-
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -7,67 +6,84 @@ const { PrismaClient } = require('@prisma/client');
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// É uma boa prática guardar o segredo do JWT em variáveis de ambiente (.env)
-// Mas para desenvolvimento, podemos começar com ele aqui.
 const JWT_SECRET = process.env.JWT_SECRET || 'meu-tcc-super-secreto-2025';
 
 // --- ROTA DE LOGIN ---
 // Método: POST | Endpoint: /api/auth/login
 router.post('/login', async (req, res) => {
-  // 1. Pegar email e senha do corpo da requisição
   const { email, password } = req.body;
 
-  // 2. Validação básica de entrada
   if (!email || !password) {
     return res.status(400).json({ error: 'Email e senha são obrigatórios.' });
   }
 
   try {
-    // 3. Buscar o usuário no banco de dados pelo email
     const user = await prisma.user.findUnique({
       where: { email },
     });
 
-    // 4. Se o usuário não existe, retorne um erro genérico
-    // (Não diga "usuário não encontrado" por segurança)
     if (!user) {
       return res.status(401).json({ error: 'Credenciais inválidas.' });
     }
     
-    // 5. Verificar se a conta do usuário está ATIVA
     if (user.status !== 'ACTIVE') {
       return res.status(403).json({ error: 'Esta conta está inativa.' });
     }
 
-    // 6. Comparar a senha enviada com a senha criptografada no banco
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
-    // 7. Se a senha for inválida, retorne o mesmo erro genérico
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Credenciais inválidas.' });
     }
 
-    // 8. Se tudo deu certo, gerar o Token JWT
     const token = jwt.sign(
       { 
         userId: user.id, 
         email: user.email,
-        role: user.role // Incluir o papel (role) é MUITO importante para o frontend!
+        role: user.role
       }, 
       JWT_SECRET, 
-      { expiresIn: '1d' } // Token expira em 1 dia
+      { expiresIn: '1d' }
     );
 
-    // 9. Remover a senha do objeto de usuário antes de enviar a resposta
+    // --- MUDANÇA PRINCIPAL AQUI ---
+    // 1. Em vez de enviar o token no JSON, vamos enviá-lo como um cookie HttpOnly.
+    //    Isso é mais seguro e permite que o middleware do Next.js o leia no servidor.
+    res.cookie('auth-token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV !== 'development', // Em produção, usar true
+      maxAge: 24 * 60 * 60 * 1000, // 1 dia, igual à expiração do token
+      path: '/',
+      sameSite: 'lax',
+    });
+    // -----------------------------
+
     const { password: _, ...userWithoutPassword } = user;
 
-    // 10. Enviar a resposta de sucesso com os dados do usuário e o token
-    res.json({ user: userWithoutPassword, token });
+    // 2. A resposta agora envia APENAS os dados do usuário. O token já foi no cookie.
+    res.json({ user: userWithoutPassword });
 
   } catch (error) {
     console.error('Erro no login:', error);
     res.status(500).json({ error: 'Ocorreu um erro interno no servidor.' });
   }
 });
+
+
+// --- ROTA DE LOGOUT (NOVA) ---
+// Método: POST | Endpoint: /api/auth/logout
+router.post('/logout', (req, res) => {
+  // A forma de fazer logout no backend é simplesmente limpar o cookie.
+  // Dizemos ao navegador para substituir o cookie 'auth-token' por um vazio
+  // que expira imediatamente.
+  res.cookie('auth-token', '', {
+    httpOnly: true,
+    expires: new Date(0), // Expira no passado
+    path: '/',
+  });
+  
+  res.status(200).json({ message: 'Logout realizado com sucesso.' });
+});
+
 
 module.exports = router;
