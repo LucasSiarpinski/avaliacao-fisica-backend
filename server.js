@@ -6,6 +6,8 @@ const cookieParser = require('cookie-parser'); // <-- NOVO: Importar o cookie-pa
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin'); 
 const alunoRoutes = require('./routes/alunos'); 
+const professorRoutes = require('./routes/professores');
+const campusRoutes = require('./routes/campus'); // Importa o arquivo
 
 const app = express();
 const PORT = process.env.PORT || 3333;
@@ -33,6 +35,8 @@ app.get('/', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes); 
 app.use('/api/alunos', alunoRoutes); 
+app.use('/api/professores', professorRoutes);
+app.use('/api/campus', campusRoutes);
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);

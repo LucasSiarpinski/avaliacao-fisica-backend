@@ -9,30 +9,38 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ===================================
+// ESTRUTURA DE ORGANIZAÇÃO (NOVO)
+// ===================================
+
 model Campus {
-  id     Int    @id @default(autoincrement())
-  name   String @unique
-  city   String
-  users  User[]
-  alunos Aluno[]
+  id      Int      @id @default(autoincrement())
+  name    String   @unique
+  city    String
+  users   User[]
+  alunos  Aluno[]  // Relação 1-para-M com Aluno
 }
 
 model User {
-  id                Int        @id @default(autoincrement())
-  email             String     @unique
+  id                Int          @id @default(autoincrement())
+  email             String       @unique
   name              String
   password          String
-  createdAt         DateTime   @default(now())
-  role              UserRole   @default(PROFESSOR)
-  status            UserStatus @default(ACTIVE)
+  createdAt         DateTime     @default(now())
+  role              UserRole     @default(PROFESSOR) // Nível de acesso (RBAC)
+  status            UserStatus   @default(ACTIVE)
+  
+  // Relação com Campus
   campusId          Int
-  campus            Campus     @relation(fields: [campusId], references: [id])
-  alunosCadastrados Aluno[]    @relation("ProfessorAlunos")
+  campus            Campus       @relation(fields: [campusId], references: [id])
+  
+  // Relação com Alunos que ele cadastrou
+  alunosCadastrados Aluno[]      @relation("ProfessorAlunos")
 }
 
 enum UserRole {
   PROFESSOR
-  ADMIN
+  ADMIN // Usuário com permissão para CRUD de Professores/Campus
 }
 
 enum UserStatus {
@@ -40,47 +48,49 @@ enum UserStatus {
   INACTIVE
 }
 
-// DENTRO DE prisma/schema.prisma
+// ===================================
+// ESTRUTURA DE AVALIAÇÃO
+// ===================================
 
 model Aluno {
-  id          Int      @id @default(autoincrement())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  status      AlunoStatus @default(ATIVO) // <-- CAMPO ADICIONADO
-
+  id                Int           @id @default(autoincrement())
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  status            AlunoStatus   @default(ATIVO)
+  
   // --- Dados de Identificação ---
-  nome        String
-  email       String   @unique
-  dataNasc    DateTime
-  matricula   String   @unique
-  cpf         String?
-  genero      String?
-  telefone    String?
+  nome              String
+  email             String        @unique
+  dataNasc          DateTime
+  matricula         String        @unique
+  cpf               String?
+  genero            String?
+  telefone          String?
 
   // --- Dados Antropométricos (os mais recentes) ---
-  altura      Float?
-  peso        Float?
+  altura            Float?
+  peso              Float?
 
   // --- Anamnese e Histórico ---
-  objetivos         String? @db.Text
-  historicoMedico   String? @db.Text
-  medicamentosEmUso String? @db.Text
-  habitos           String? @db.Text
-  observacoes       String? @db.Text
+  objetivos         String?       @db.Text
+  historicoMedico   String?       @db.Text
+  medicamentosEmUso String?       @db.Text
+  habitos           String?       @db.Text
+  observacoes       String?       @db.Text
 
   // --- Controle de Fluxo ---
-  anamneseStatus  AnamneseStatus @default(PENDING)
-  anamneseSentAt  DateTime?
+  anamneseStatus    AnamneseStatus @default(PENDING)
+  anamneseSentAt    DateTime?
 
   // --- Relacionamentos ---
-  campusId    Int
-  campus      Campus @relation(fields: [campusId], references: [id])
-  professorId Int
-  professor   User   @relation("ProfessorAlunos", fields: [professorId], references: [id])
+  campusId          Int           // Chave estrangeira para Campus
+  campus            Campus        @relation(fields: [campusId], references: [id])
   
-  avaliacoes  Avaliacao[]
-  documentos  Documento[]
+  professorId       Int           // Chave estrangeira para o professor responsável
+  professor         User          @relation("ProfessorAlunos", fields: [professorId], references: [id])
+  
+  avaliacoes        Avaliacao[]
+  documentos        Documento[]
 }
 
 // NOVO ENUM PARA O STATUS DO ALUNO
@@ -90,26 +100,26 @@ enum AlunoStatus {
 }
 
 enum AnamneseStatus {
-  PENDING
-  SENT
+  PENDING // Ainda não iniciada
+  SENT    // Enviada/preenchida
   COMPLETED
 }
 
 model Avaliacao {
-  id         Int      @id @default(autoincrement())
-  data       DateTime @default(now())
-  tipo       String
-  resultados Json
-  alunoId    Int
-  aluno      Aluno    @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  id          Int      @id @default(autoincrement())
+  data        DateTime @default(now())
+  tipo        String
+  resultados  Json // Armazenamento flexível para os resultados de cálculos
+  alunoId     Int
+  aluno       Aluno    @relation(fields: [alunoId], references: [id], onDelete: Cascade)
 }
 
 model Documento {
-  id       Int      @id @default(autoincrement())
-  nome     String
-  tipo     String
-  url      String
-  uploadAt DateTime @default(now())
-  alunoId  Int
-  aluno    Aluno    @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  id          Int      @id @default(autoincrement())
+  nome        String
+  tipo        String
+  url         String
+  uploadAt    DateTime @default(now())
+  alunoId     Int
+  aluno       Aluno    @relation(fields: [alunoId], references: [id], onDelete: Cascade)
 }
