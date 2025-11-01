@@ -8,6 +8,7 @@ const adminRoutes = require('./routes/admin');
 const alunoRoutes = require('./routes/alunos'); 
 const professorRoutes = require('./routes/professores');
 const campusRoutes = require('./routes/campus'); // Importa o arquivo
+const avaliacoesRoutes = require('./routes/avaliacoes'); // Importa o arquivo
 
 const app = express();
 const PORT = process.env.PORT || 3333;
@@ -37,6 +38,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/alunos', alunoRoutes); 
 app.use('/api/professores', professorRoutes);
 app.use('/api/campus', campusRoutes);
+app.use('/api/avaliacoes', avaliacoesRoutes); // <-- NOVO: Adiciona a rota de avaliações
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);

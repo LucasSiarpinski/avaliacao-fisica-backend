@@ -36,6 +36,8 @@ model User {
   
   // Relação com Alunos que ele cadastrou
   alunosCadastrados Aluno[]      @relation("ProfessorAlunos")
+  // Relação com as avaliações que este usuário realizou
+  avaliacoesRealizadas Avaliacao[] @relation("AvaliadorAvaliacoes")
 }
 
 enum UserRole {
@@ -78,6 +80,15 @@ model Aluno {
   habitos           String?       @db.Text
   observacoes       String?       @db.Text
 
+  // --- NOVOS CAMPOS DO PAR-Q ---
+  parq_q1           String?   // "SIM" ou "NAO"
+  parq_q2           String?
+  parq_q3           String?
+  parq_q4           String?
+  parq_q5           String?
+  parq_q6           String?
+  parq_q7           String?
+
   // --- Controle de Fluxo ---
   anamneseStatus    AnamneseStatus @default(PENDING)
   anamneseSentAt    DateTime?
@@ -105,13 +116,70 @@ enum AnamneseStatus {
   COMPLETED
 }
 
+// SUBSTITUA O SEU MODELO "Avaliacao" ATUAL POR ESTE:
 model Avaliacao {
-  id          Int      @id @default(autoincrement())
-  data        DateTime @default(now())
-  tipo        String
-  resultados  Json // Armazenamento flexível para os resultados de cálculos
-  alunoId     Int
-  aluno       Aluno    @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  id            Int      @id @default(autoincrement())
+  dataAvaliacao DateTime @default(now()) // Data em que a avaliação foi feita
+
+  // --- RELACIONAMENTOS ---
+  alunoId       Int
+  aluno         Aluno    @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  
+  avaliadorId   Int      // NOVO: Armazena quem foi o Professor/Admin que fez a avaliação
+  avaliador     User     @relation("AvaliadorAvaliacoes", fields: [avaliadorId], references: [id], onDelete: NoAction)
+
+  // --- SNAPSHOT DA ANAMNESE (Copiado do Aluno no momento da criação) ---
+  // (Campos espelhados do seu model Aluno)
+  objetivos         String? @db.Text
+  historicoMedico   String? @db.Text
+  medicamentosEmUso String? @db.Text
+  habitos           String? @db.Text
+  observacoes       String? @db.Text
+
+  // --- SNAPSHOT DO PAR-Q (Copiado do Aluno no momento da criação) ---
+  // (Campos espelhados do seu model Aluno)
+  parq_q1           String?
+  parq_q2           String?
+  parq_q3           String?
+  parq_q4           String?
+  parq_q5           String?
+  parq_q6           String?
+  parq_q7           String?
+
+  // --- DADOS DA AVALIAÇÃO FÍSICA (Coletados na hora) ---
+  
+  // 1. Antropometria Básica
+  peso              Float? // kg
+  altura            Float? // m
+
+  // 2. Perimetria (Circunferências em cm)
+  circCintura       Float?
+  circAbdomem       Float?
+  circQuadril       Float?
+  circBracoRelaxadoD  Float?
+  circBracoRelaxadoE  Float?
+  // (Adicione mais se precisar)
+
+  // 3. Composição Corporal (Dobras Cutâneas em mm - Pollock 7)
+  dcTriceps         Float?
+  dcSubescapular    Float?
+  dcPeitoral        Float?
+  dcAxilarMedia     Float?
+  dcSuprailiaca     Float?
+  dcAbdominal       Float?
+  dcCoxa            Float?
+  
+  // --- RESULTADOS CALCULADOS ---
+  // Seu campo 'resultados' é perfeito para isso.
+  // Vamos salvar os dados brutos nos campos acima
+  // e os cálculos (ex: % Gordura) aqui dentro.
+  resultados        Json? 
+
+  // --- Controle ---
+  // (Seu 'data' foi renomeado para 'dataAvaliacao')
+  updatedAt         DateTime @updatedAt
+
+  // @@map("avaliacoes") // Descomente se o nome da tabela precisar ser "avaliacoes"
 }
 
 model Documento {
