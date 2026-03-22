@@ -3,31 +3,31 @@ const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-// --- AUTENTICAÇÃO ---
-// Importa o middleware de autenticação
-const { authenticateToken } = require('../middlewares/authMiddleware');
-// Aplica o middleware a TODAS as rotas neste arquivo.
+const { authenticateToken } = require('../src/infrastructure/web/middlewares/authMiddleware');
 router.use(authenticateToken); 
 
-// --- ROTA GET / ---
-// Lista todas as avaliações
+// --- FUNÇÃO HELPER: Converte para número ou null ---
+const toNumberOrNull = (value) => {
+  const num = parseFloat(value);
+  return isNaN(num) ? null : num;
+};
+
+// --- ROTA GET / --- (Para a Grid)
 router.get('/', async (req, res) => {
   try {
     const avaliacoes = await prisma.avaliacao.findMany({
-      orderBy: {
-        dataAvaliacao: 'desc',
-      },
+      orderBy: { dataAvaliacao: 'desc' },
       include: {
-        aluno: {
-          select: {
-            nome: true, // Aluno usa 'nome'
-            matricula: true,
-          },
+        aluno: { 
+          select: { 
+            nome: true, 
+            matricula: true 
+          } 
         },
-        avaliador: {
-          select: {
-            name: true, // User (avaliador) usa 'name'
-          },
+        avaliador: { 
+          select: { 
+            name: true 
+          } 
         },
       },
     });
@@ -38,40 +38,37 @@ router.get('/', async (req, res) => {
   }
 });
 
-// --- ROTA POST / ---
-// Cria uma nova avaliação (baseado na seleção do aluno)
+// --- ROTA POST / --- (Para Criar)
 router.post('/', async (req, res) => {
+  console.log("===================================");
+  console.log("CONTEÚDO DO REQ.USER:", req.user); // Para o bug do "Avaliador"
+  console.log("===================================");
+
   const { alunoId } = req.body;
-  const avaliadorId = req.user.id; // Pego do middleware 'authenticateToken'
+  const avaliadorId = req.user.id; 
 
   if (!alunoId) {
     return res.status(400).json({ error: 'O ID do aluno é obrigatório.' });
   }
 
   try {
-    // 1. Buscar o aluno para copiar os dados
     const aluno = await prisma.aluno.findUnique({
       where: { id: parseInt(alunoId) },
     });
-
     if (!aluno) {
       return res.status(404).json({ error: 'Aluno não encontrado.' });
     }
 
-    // 2. Criar a nova avaliação, copiando os dados (snapshot)
+    // Cria a avaliação copiando os dados (schema simples)
     const novaAvaliacao = await prisma.avaliacao.create({
       data: {
         alunoId: aluno.id,
         avaliadorId: avaliadorId,
-
-        // --- Copiando dados da Anamnese ---
         objetivos: aluno.objetivos,
         historicoMedico: aluno.historicoMedico,
         medicamentosEmUso: aluno.medicamentosEmUso,
         habitos: aluno.habitos,
         observacoes: aluno.observacoes,
-
-        // --- Copiando dados do PAR-Q ---
         parq_q1: aluno.parq_q1,
         parq_q2: aluno.parq_q2,
         parq_q3: aluno.parq_q3,
@@ -79,10 +76,12 @@ router.post('/', async (req, res) => {
         parq_q5: aluno.parq_q5,
         parq_q6: aluno.parq_q6,
         parq_q7: aluno.parq_q7,
+        
+        peso: aluno.peso, 
+        altura: aluno.altura 
       },
     });
 
-    // 3. Retornar a avaliação criada
     res.status(201).json(novaAvaliacao);
 
   } catch (error) {
@@ -91,19 +90,26 @@ router.post('/', async (req, res) => {
   }
 });
 
-
-// --- ROTA GET /:id ---
-// Busca UMA avaliação específica pelo seu ID
+// --- ROTA GET /:id --- (Para Carregar o Formulário)
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const avaliacao = await prisma.avaliacao.findUnique({
       where: { id: parseInt(id) },
       include: {
-        // Incluímos o nome do aluno para mostrar no título (ex: "Avaliando: Giovana")
-        aluno: {
-          select: { nome: true },
+        aluno: { 
+          select: { 
+            nome: true, 
+            dataNasc: true 
+          } 
         },
+        // ADICIONE ISTO:
+        avaliador: {
+          select: {
+            name: true, // Para mostrar o nome na tela
+            id: true
+          }
+        }
       },
     });
 
@@ -117,62 +123,49 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-
-// --- ROTA PUT /:id ---
-// Salva/Atualiza os dados da avaliação
+// --- ROTA PUT /:id --- (Para Salvar o Formulário)
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-
-  // Pegamos todos os campos que podem ser editados do 'body'
+  
   const {
-    // Snapshot fields (Anamnese/PAR-Q)
     objetivos, historicoMedico, medicamentosEmUso, habitos, observacoes,
     parq_q1, parq_q2, parq_q3, parq_q4, parq_q5, parq_q6, parq_q7,
-    
-    // Assessment fields (Antropometria)
     peso, altura,
-    
-    // Perimetria
     circCintura, circAbdomem, circQuadril, circBracoRelaxadoD, circBracoRelaxadoE,
-    
-    // Dobras
-    dcTriceps, dcSubescapular, dcPeitoral, dcAxilarMedia, dcSuprailiaca, dcAbdominal, dcCoxa
+    dcTriceps, dcSubescapular, dcPeitoral, dcAxilarMedia, dcSuprailiaca,
+    dcAbdominal, dcCoxa
   } = req.body;
 
-  // --- TRATAMENTO DE DADOS ---
-  // Converte strings vazias ou inválidas para 'null'
-  // e garante que números sejam salvos como Float
-  const toNumberOrNull = (value) => {
-    const num = parseFloat(value);
-    return isNaN(num) ? null : num;
-  };
-
-  const safeData = {
-    // Strings (Anamnese/PAR-Q)
-    objetivos, historicoMedico, medicamentosEmUso, habitos, observacoes,
-    parq_q1, parq_q2, parq_q3, parq_q4, parq_q5, parq_q6, parq_q7,
-    
-    // Floats (Dados da Avaliação)
-    peso: toNumberOrNull(peso),
-    altura: toNumberOrNull(altura),
-    circCintura: toNumberOrNull(circCintura),
-    circAbdomem: toNumberOrNull(circAbdomem),
-    circQuadril: toNumberOrNull(circQuadril),
-    circBracoRelaxadoD: toNumberOrNull(circBracoRelaxadoD),
-    circBracoRelaxadoE: toNumberOrNull(circBracoRelaxadoE),
-    dcTriceps: toNumberOrNull(dcTriceps),
-    dcSubescapular: toNumberOrNull(dcSubescapular),
-    dcPeitoral: toNumberOrNull(dcPeitoral),
-    dcAxilarMedia: toNumberOrNull(dcAxilarMedia),
-    dcSuprailiaca: toNumberOrNull(dcSuprailiaca),
-    dcAbdominal: toNumberOrNull(dcAbdominal),
-    dcCoxa: toNumberOrNull(dcCoxa)
-  };
-
   try {
+    // ESTE É O CÓDIGO CORRETO: Salva 'peso', 'altura', etc. direto na 'Avaliacao'
     const avaliacaoAtualizada = await prisma.avaliacao.update({
       where: { id: parseInt(id) },
-      data: safeData,
+      data: {
+        objetivos, historicoMedico, medicamentosEmUso, habitos, observacoes,
+        parq_q1, parq_q2, parq_q3, parq_q4, parq_q5, parq_q6, parq_q7,
+        peso: toNumberOrNull(peso),
+        altura: toNumberOrNull(altura),
+        circCintura: toNumberOrNull(circCintura),
+        circAbdomem: toNumberOrNull(circAbdomem),
+        circQuadril: toNumberOrNull(circQuadril),
+        circBracoRelaxadoD: toNumberOrNull(circBracoRelaxadoD),
+        circBracoRelaxadoE: toNumberOrNull(circBracoRelaxadoE),
+        dcTriceps: toNumberOrNull(dcTriceps),
+        dcSubescapular: toNumberOrNull(dcSubescapular),
+        dcPeitoral: toNumberOrNull(dcPeitoral),
+        dcAxilarMedia: toNumberOrNull(dcAxilarMedia),
+        dcSuprailiaca: toNumberOrNull(dcSuprailiaca),
+        dcAbdominal: toNumberOrNull(dcAbdominal),
+        dcCoxa: toNumberOrNull(dcCoxa)
+      },
+      include: { 
+        aluno: { 
+          select: { 
+            nome: true, 
+            dataNasc: true 
+          } 
+        },
+      },
     });
     res.json(avaliacaoAtualizada);
   } catch (error) {
@@ -180,6 +173,5 @@ router.put('/:id', async (req, res) => {
     res.status(500).json({ error: 'Não foi possível salvar a avaliação.' });
   }
 });
-
 
 module.exports = router;

@@ -4,6 +4,12 @@ generator client {
   provider = "prisma-client-js"
 }
 
+//gerador do diagrama de entidade e relacionamento
+generator erd {
+  provider = "prisma-erd-generator"
+  output   = "./DER.png" // Vai gerar um PNG
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
