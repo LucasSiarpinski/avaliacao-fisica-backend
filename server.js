@@ -3,12 +3,12 @@ const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser'); // <-- NOVO: Importar o cookie-parser
 
-const authRoutes = require('./routes/auth');
-const adminRoutes = require('./routes/admin'); 
-const alunoRoutes = require('./routes/alunos'); 
-const professorRoutes = require('./routes/professores');
-const campusRoutes = require('./routes/campus'); // Importa o arquivo
-const avaliacoesRoutes = require('./routes/avaliacoes'); // Importa o arquivo
+const authRoutes = require('./src/infrastructure/web/routes/auth');
+const adminRoutes = require('./src/infrastructure/web/routes/admin'); 
+const alunoRoutes = require('./src/infrastructure/web/routes/alunos'); 
+const professorRoutes = require('./src/infrastructure/web/routes/professores');
+const campusRoutes = require('./src/infrastructure/web/routes/campus'); // Importa o arquivo
+const avaliacoesRoutes = require('./src/infrastructure/web/routes/avaliacoes'); // Importa o arquivo
 
 const app = express();
 const PORT = process.env.PORT || 3333;

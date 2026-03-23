@@ -1,8 +1,8 @@
 // routes/alunos.js
 
 const express = require('express');
-const { authenticateToken } = require('../src/infrastructure/web/middlewares/authMiddleware');
-const AlunoController = require('../src/infrastructure/web/controllers/AlunoController');
+const { authenticateToken } = require('../middlewares/authMiddleware');
+const AlunoController = require('../controllers/AlunoController');
 
 const router = express.Router();
 

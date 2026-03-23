@@ -3,7 +3,7 @@ const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-const { authenticateToken } = require('../src/infrastructure/web/middlewares/authMiddleware');
+const { authenticateToken } = require('../middlewares/authMiddleware');
 router.use(authenticateToken); 
 
 // --- FUNÇÃO HELPER: Converte para número ou null ---
