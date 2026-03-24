@@ -1,38 +1,46 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const PrismaAlunoRepository = require('../../repositories/PrismaAlunoRepository');
+const CreateAlunoUseCase = require('../../../application/use-cases/CreateAlunoUseCase');
+const GetAlunosUseCase = require('../../../application/use-cases/GetAlunosUseCase');
+const GetAlunoByIdUseCase = require('../../../application/use-cases/GetAlunoByIdUseCase');
+const UpdateAlunoUseCase = require('../../../application/use-cases/UpdateAlunoUseCase');
+const DeleteAlunoUseCase = require('../../../application/use-cases/DeleteAlunoUseCase');
+const UpdateAlunoStatusUseCase = require('../../../application/use-cases/UpdateAlunoStatusUseCase');
 
 class AlunoController {
+  constructor() {
+    const alunoRepository = new PrismaAlunoRepository();
+    this.createAlunoUseCase = new CreateAlunoUseCase(alunoRepository);
+    this.getAlunosUseCase = new GetAlunosUseCase(alunoRepository);
+    this.getAlunoByIdUseCase = new GetAlunoByIdUseCase(alunoRepository);
+    this.updateAlunoUseCase = new UpdateAlunoUseCase(alunoRepository);
+    this.deleteAlunoUseCase = new DeleteAlunoUseCase(alunoRepository);
+    this.updateAlunoStatusUseCase = new UpdateAlunoStatusUseCase(alunoRepository);
+  }
+
   // --- CRIAR UM NOVO ALUNO ---
   async create(req, res) {
-    const { 
+    const {
       nome, email, dataNasc, matricula, cpf, genero, telefone,
-      altura, peso, objetivos, historicoMedico, medicamentosEmUso, habitos, observacoes 
+      altura, peso, objetivos, historicoMedico, medicamentosEmUso, habitos, observacoes,
+      parq_q1, parq_q2, parq_q3, parq_q4, parq_q5, parq_q6, parq_q7
     } = req.body;
-    
+
     const professorLogado = req.user;
 
-    if (!nome || !email || !dataNasc || !matricula) {
-      return res.status(400).json({ error: 'Nome, email, data de nascimento e matrícula são obrigatórios.' });
-    }
-
     try {
-      const novoAluno = await prisma.aluno.create({
-        data: {
-          nome, email, dataNasc: new Date(dataNasc), matricula, cpf, genero, telefone,
-          altura: altura ? parseFloat(altura) : null,
-          peso: peso ? parseFloat(peso) : null,
-          objetivos, historicoMedico, medicamentosEmUso, habitos, observacoes,
-          professorId: professorLogado.id,
-          campusId: professorLogado.campusId,
-        },
+      const novoAluno = await this.createAlunoUseCase.execute({
+        nome, email, dataNasc: new Date(dataNasc), matricula, cpf, genero, telefone,
+        altura: altura ? parseFloat(altura) : null,
+        peso: peso ? parseFloat(peso) : null,
+        objetivos, historicoMedico, medicamentosEmUso, habitos, observacoes,
+        parq_q1, parq_q2, parq_q3, parq_q4, parq_q5, parq_q6, parq_q7,
+        professorId: professorLogado.id,
+        campusId: professorLogado.campusId,
       });
       return res.status(201).json(novoAluno);
     } catch (error) {
-      if (error.code === 'P2002') {
-        return res.status(400).json({ error: 'Este email ou matrícula já está em uso.' });
-      }
       console.error('Erro ao criar aluno:', error);
-      return res.status(500).json({ error: 'Não foi possível criar o aluno.' });
+      return res.status(400).json({ error: error.message });
     }
   }
 
@@ -40,10 +48,7 @@ class AlunoController {
   async getAll(req, res) {
     const professorId = req.user.id;
     try {
-      const alunos = await prisma.aluno.findMany({
-        where: { professorId: professorId },
-        orderBy: { nome: 'asc' },
-      });
+      const alunos = await this.getAlunosUseCase.execute(professorId);
       return res.json(alunos);
     } catch (error) {
       console.error('Erro ao listar alunos:', error);
@@ -56,16 +61,11 @@ class AlunoController {
     const { id } = req.params;
     const professorId = req.user.id;
     try {
-      const aluno = await prisma.aluno.findUnique({
-        where: { id: parseInt(id), professorId: professorId },
-      });
-      if (!aluno) {
-        return res.status(404).json({ error: "Aluno não encontrado ou não pertence a este professor." });
-      }
+      const aluno = await this.getAlunoByIdUseCase.execute(id, professorId);
       return res.json(aluno);
     } catch (error) {
       console.error('Erro ao buscar aluno por ID:', error);
-      return res.status(500).json({ error: "Erro ao buscar aluno." });
+      return res.status(404).json({ error: error.message });
     }
   }
 
@@ -75,39 +75,12 @@ class AlunoController {
     const professorId = req.user.id;
     const dataToUpdate = req.body;
 
-    if (dataToUpdate.dataNasc && typeof dataToUpdate.dataNasc === 'string') {
-      dataToUpdate.dataNasc = new Date(dataToUpdate.dataNasc);
-    }
-
-    if (dataToUpdate.altura && typeof dataToUpdate.altura === 'string') {
-      dataToUpdate.altura = parseFloat(dataToUpdate.altura);
-    } else if (dataToUpdate.altura === '') {
-      dataToUpdate.altura = null;
-    }
-
-    if (dataToUpdate.peso && typeof dataToUpdate.peso === 'string') {
-      dataToUpdate.peso = parseFloat(dataToUpdate.peso);
-    } else if (dataToUpdate.peso === '') {
-      dataToUpdate.peso = null;
-    }
-
     try {
-      const alunoExistente = await prisma.aluno.findFirst({
-        where: { id: parseInt(id), professorId: professorId },
-      });
-      
-      if (!alunoExistente) {
-        return res.status(404).json({ error: "Permissão negada. Aluno não encontrado." });
-      }
-
-      const alunoAtualizado = await prisma.aluno.update({
-        where: { id: parseInt(id) },
-        data: dataToUpdate,
-      });
+      const alunoAtualizado = await this.updateAlunoUseCase.execute(id, professorId, dataToUpdate);
       return res.json(alunoAtualizado);
     } catch (error) {
       console.error("Erro ao atualizar aluno:", error);
-      return res.status(500).json({ error: "Erro ao atualizar aluno." });
+      return res.status(400).json({ error: error.message });
     }
   }
 
@@ -116,19 +89,11 @@ class AlunoController {
     const { id } = req.params;
     const professorId = req.user.id;
     try {
-      const alunoExistente = await prisma.aluno.findFirst({
-        where: { id: parseInt(id), professorId: professorId },
-      });
-      if (!alunoExistente) {
-        return res.status(404).json({ error: "Permissão negada. Aluno não encontrado." });
-      }
-      await prisma.aluno.delete({
-        where: { id: parseInt(id) },
-      });
+      await this.deleteAlunoUseCase.execute(id, professorId);
       return res.status(204).send();
     } catch (error) {
       console.error("Erro ao excluir aluno:", error);
-      return res.status(500).json({ error: "Erro ao excluir aluno." });
+      return res.status(400).json({ error: error.message });
     }
   }
 
@@ -138,26 +103,12 @@ class AlunoController {
     const { status } = req.body;
     const professorId = req.user.id;
 
-    if (status !== 'ATIVO' && status !== 'INATIVO') {
-      return res.status(400).json({ error: 'Status inválido.' });
-    }
-
     try {
-      const alunoExistente = await prisma.aluno.findFirst({
-        where: { id: parseInt(id), professorId: professorId },
-      });
-      if (!alunoExistente) {
-        return res.status(404).json({ error: "Permissão negada. Aluno não encontrado." });
-      }
-
-      const alunoAtualizado = await prisma.aluno.update({
-        where: { id: parseInt(id) },
-        data: { status: status },
-      });
+      const alunoAtualizado = await this.updateAlunoStatusUseCase.execute(id, professorId, status);
       return res.json(alunoAtualizado);
     } catch (error) {
-      console.error("Erro ao atualizar status do aluno:", error);
-      return res.status(500).json({ error: "Erro ao atualizar status do aluno." });
+      console.error("Erro ao alterar status do aluno:", error);
+      return res.status(400).json({ error: error.message });
     }
   }
 }
