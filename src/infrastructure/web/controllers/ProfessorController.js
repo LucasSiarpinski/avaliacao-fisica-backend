@@ -2,6 +2,8 @@ const PrismaProfessorRepository = require('../../repositories/PrismaProfessorRep
 const CreateProfessorUseCase = require('../../../application/use-cases/CreateProfessorUseCase');
 const GetProfessoresUseCase = require('../../../application/use-cases/GetProfessoresUseCase');
 const GetProfessorByIdUseCase = require('../../../application/use-cases/GetProfessorByIdUseCase');
+const UpdateProfessorUseCase = require('../../../application/use-cases/UpdateProfessorUseCase');
+const DeleteProfessorUseCase = require('../../../application/use-cases/DeleteProfessorUseCase');
 
 class ProfessorController {
   constructor() {
@@ -9,10 +11,12 @@ class ProfessorController {
     this.createProfessorUseCase = new CreateProfessorUseCase(professorRepository);
     this.getProfessoresUseCase = new GetProfessoresUseCase(professorRepository);
     this.getProfessorByIdUseCase = new GetProfessorByIdUseCase(professorRepository);
+    this.updateProfessorUseCase = new UpdateProfessorUseCase(professorRepository);
+    this.deleteProfessorUseCase = new DeleteProfessorUseCase(professorRepository);
   }
 
   // --- CRIAR UM NOVO PROFESSOR ---
-  async create(req, res) {
+  create = async (req, res) => {
     const { name, email, password, role, campusId } = req.body;
 
     try {
@@ -31,7 +35,7 @@ class ProfessorController {
   }
 
   // --- LISTAR TODOS OS PROFESSORES ---
-  async getAll(req, res) {
+  getAll = async (req, res) => {
     try {
       const professores = await this.getProfessoresUseCase.execute();
       return res.status(200).json(professores);
@@ -42,7 +46,7 @@ class ProfessorController {
   }
 
   // --- BUSCAR UM PROFESSOR ESPECÍFICO PELO ID ---
-  async getById(req, res) {
+  getById = async (req, res) => {
     const { id } = req.params;
     try {
       const professor = await this.getProfessorByIdUseCase.execute(id);
@@ -54,15 +58,42 @@ class ProfessorController {
   }
 
   // --- ATUALIZAR UM PROFESSOR ---
-  async update(req, res) {
-    // Implementação básica - pode ser expandida depois
-    return res.status(501).json({ message: 'Funcionalidade ainda não implementada.' });
+  update = async (req, res) => {
+    const { id } = req.params;
+    const { name, email, password, role, campusId, status } = req.body;
+
+    const dataToUpdate = {
+      name,
+      email,
+      role,
+      status,
+      campusId: campusId ? parseInt(campusId) : undefined,
+    };
+
+    if (password) {
+      dataToUpdate.password = password;
+    }
+
+    try {
+      const professorAtualizado = await this.updateProfessorUseCase.execute(id, dataToUpdate);
+      return res.status(200).json(professorAtualizado);
+    } catch (error) {
+      console.error('Erro ao atualizar professor:', error);
+      return res.status(400).json({ message: error.message });
+    }
   }
 
   // --- EXCLUIR UM PROFESSOR ---
-  async delete(req, res) {
-    // Implementação básica - pode ser expandida depois
-    return res.status(501).json({ message: 'Funcionalidade ainda não implementada.' });
+  delete = async (req, res) => {
+    const { id } = req.params;
+
+    try {
+      await this.deleteProfessorUseCase.execute(id);
+      return res.status(204).send();
+    } catch (error) {
+      console.error('Erro ao excluir professor:', error);
+      return res.status(400).json({ message: error.message });
+    }
   }
 }
 

@@ -11,7 +11,7 @@ async function authenticateToken(req, res, next) {
 
   if (token == null) {
     // Se não há token, o acesso é não autorizado
-    return res.sendStatus(401); 
+    return res.sendStatus(401);
   }
 
   try {

@@ -40,6 +40,12 @@ app.use('/api/professores', professorRoutes);
 app.use('/api/campus', campusRoutes);
 app.use('/api/avaliacoes', avaliacoesRoutes); // <-- NOVO: Adiciona a rota de avaliações
 
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
-});
+// O if impede que o servidor ligue a porta 3333 durante os testes (evitando travar o Jest)
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
+  });
+}
+
+// Exporta o app para o Jest conseguir ler as rotas!
+module.exports = app;

@@ -18,7 +18,8 @@ class AlunoController {
   }
 
   // --- CRIAR UM NOVO ALUNO ---
-  async create(req, res) {
+  // CORREÇÃO: Usando Arrow Function ( = async ... => )
+  create = async (req, res) => {
     const {
       nome, email, dataNasc, matricula, cpf, genero, telefone,
       altura, peso, objetivos, historicoMedico, medicamentosEmUso, habitos, observacoes,
@@ -45,7 +46,7 @@ class AlunoController {
   }
 
   // --- LISTAR OS ALUNOS DO PROFESSOR LOGADO ---
-  async getAll(req, res) {
+  getAll = async (req, res) => {
     const professorId = req.user.id;
     try {
       const alunos = await this.getAlunosUseCase.execute(professorId);
@@ -57,7 +58,7 @@ class AlunoController {
   }
 
   // --- BUSCAR UM ALUNO ESPECÍFICO PELO ID ---
-  async getById(req, res) {
+  getById = async (req, res) => {
     const { id } = req.params;
     const professorId = req.user.id;
     try {
@@ -70,7 +71,7 @@ class AlunoController {
   }
 
   // --- ATUALIZAR UM ALUNO ---
-  async update(req, res) {
+  update = async (req, res) => {
     const { id } = req.params;
     const professorId = req.user.id;
     const dataToUpdate = req.body;
@@ -85,7 +86,7 @@ class AlunoController {
   }
 
   // --- EXCLUIR UM ALUNO ---
-  async delete(req, res) {
+  delete = async (req, res) => {
     const { id } = req.params;
     const professorId = req.user.id;
     try {
@@ -98,7 +99,7 @@ class AlunoController {
   }
 
   // --- ALTERAR O STATUS DE UM ALUNO ---
-  async updateStatus(req, res) {
+  updateStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
     const professorId = req.user.id;
