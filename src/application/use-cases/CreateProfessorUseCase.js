@@ -5,25 +5,30 @@ class CreateProfessorUseCase {
     this.professorRepository = professorRepository;
   }
 
-  async execute(professorData) {
-    // Validações básicas
+  async execute(professorData, campusIdDoAdmin) {
     if (!professorData.name || !professorData.email || !professorData.password) {
       throw new Error('Nome, email e senha são obrigatórios.');
     }
+    if (campusIdDoAdmin == null) {
+      throw new Error('Campus do administrador inválido.');
+    }
 
-    // Verificar se email já existe
+    const campusId = parseInt(campusIdDoAdmin, 10);
+
     const existingProfessor = await this.professorRepository.findByEmail(professorData.email);
     if (existingProfessor) {
       throw new Error('Este email já está em uso.');
     }
 
-    // Hash da senha
     const hashedPassword = await bcrypt.hash(professorData.password, 10);
 
     const newProfessorData = {
-      ...professorData,
+      name: professorData.name,
+      email: professorData.email,
       password: hashedPassword,
-      role: professorData.role || 'PROFESSOR',
+      role: professorData.role === 'ADMIN' ? 'ADMIN' : 'PROFESSOR',
+      status: professorData.status || 'ACTIVE',
+      campusId,
     };
 
     try {

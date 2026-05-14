@@ -7,7 +7,15 @@ class IAvaliacaoRepository {
     throw new Error('Method not implemented');
   }
 
+  async findAllForUser(user) {
+    throw new Error('Method not implemented');
+  }
+
   async findById(id) {
+    throw new Error('Method not implemented');
+  }
+
+  async findByIdForUser(id, user) {
     throw new Error('Method not implemented');
   }
 

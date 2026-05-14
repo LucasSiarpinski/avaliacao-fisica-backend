@@ -3,8 +3,8 @@ class DeleteAvaliacaoUseCase {
     this.avaliacaoRepository = avaliacaoRepository;
   }
 
-  async execute(id) {
-    const avaliacaoExistente = await this.avaliacaoRepository.findById(id);
+  async execute(id, user) {
+    const avaliacaoExistente = await this.avaliacaoRepository.findByIdForUser(id, user);
     if (!avaliacaoExistente) {
       throw new Error('Avaliação não encontrada.');
     }

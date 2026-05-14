@@ -10,11 +10,10 @@ const prisma = new PrismaClient();
 // Método: POST | Endpoint: /api/admin/professors
 // Proteção: Requer token válido E que o usuário seja ADMIN.
 router.post('/professors', authenticateToken, adminOnly, async (req, res) => {
-  const { name, email, password, campusId } = req.body;
+  const { name, email, password } = req.body;
 
-  // Validação dos dados de entrada
-  if (!name || !email || !password || !campusId) {
-    return res.status(400).json({ error: 'Todos os campos são obrigatórios: nome, email, senha e campusId.' });
+  if (!name || !email || !password) {
+    return res.status(400).json({ error: 'Nome, email e senha são obrigatórios.' });
   }
 
   try {
@@ -33,7 +32,7 @@ router.post('/professors', authenticateToken, adminOnly, async (req, res) => {
         name,
         email,
         password: hashedPassword,
-        campusId,
+        campusId: req.user.campusId,
         role: 'PROFESSOR', // Definido explicitamente
         status: 'ACTIVE',
       },

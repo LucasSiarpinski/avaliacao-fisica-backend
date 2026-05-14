@@ -26,18 +26,23 @@ async function main() {
 
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@universidade.com' },
-    update: {},
+    update: {
+      password: hashedPassword,
+      role: 'ADMIN',
+      status: 'ACTIVE',
+      campusId: chapeco.id,
+    },
     create: {
       name: 'Administrador',
       email: 'admin@universidade.com',
       password: hashedPassword,
       role: 'ADMIN',
       status: 'ACTIVE',
-      campusId: chapeco.id, // O admin pertence ao campus principal
+      campusId: chapeco.id,
     },
   });
 
-  console.log(`Usuário ADMIN criado: ${adminUser.email}`);
+  console.log(`Usuário ADMIN (seed): ${adminUser.email} — senha: admin123 (troque em produção)`);
   console.log('Seeding finalizado com sucesso.');
 }
 

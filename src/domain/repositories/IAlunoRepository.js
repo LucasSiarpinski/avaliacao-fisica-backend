@@ -7,6 +7,10 @@ class IAlunoRepository {
     throw new Error('Method not implemented');
   }
 
+  async findById(id) {
+    throw new Error('Method not implemented');
+  }
+
   async findByIdAndProfessor(id, professorId) {
     throw new Error('Method not implemented');
   }

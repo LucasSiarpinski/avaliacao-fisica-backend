@@ -3,8 +3,11 @@ class GetProfessoresUseCase {
     this.professorRepository = professorRepository;
   }
 
-  async execute() {
-    return await this.professorRepository.findAll();
+  async execute(campusId) {
+    if (campusId == null) {
+      throw new Error('Campus é obrigatório para listar professores.');
+    }
+    return await this.professorRepository.findAllByCampusId(campusId);
   }
 }
 

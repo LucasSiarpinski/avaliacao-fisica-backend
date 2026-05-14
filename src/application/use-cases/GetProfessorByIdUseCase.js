@@ -3,8 +3,8 @@ class GetProfessorByIdUseCase {
     this.professorRepository = professorRepository;
   }
 
-  async execute(id) {
-    const professor = await this.professorRepository.findById(id);
+  async execute(id, campusId) {
+    const professor = await this.professorRepository.findByIdAndCampusId(id, campusId);
     if (!professor) {
       throw new Error('Professor não encontrado.');
     }

@@ -31,6 +31,17 @@ class PrismaAlunoRepository extends IAlunoRepository {
     }
   }
 
+  async findById(id) {
+    try {
+      const prismaAluno = await this.prisma.aluno.findUnique({
+        where: { id: parseInt(id, 10) },
+      });
+      return prismaAluno ? new Aluno(prismaAluno) : null;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   async findByIdAndProfessor(id, professorId) {
     try {
       const prismaAluno = await this.prisma.aluno.findFirst({

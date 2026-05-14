@@ -2,11 +2,10 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
+const { getJwtSecret } = require('../../config/jwt');
 
 const router = express.Router();
 const prisma = new PrismaClient();
-
-const JWT_SECRET = process.env.JWT_SECRET || 'meu-tcc-super-secreto-2025';
 
 // --- ROTA DE LOGIN ---
 // Método: POST | Endpoint: /api/auth/login
@@ -42,7 +41,7 @@ router.post('/login', async (req, res) => {
         email: user.email,
         role: user.role
       }, 
-      JWT_SECRET, 
+      getJwtSecret(), 
       { expiresIn: '1d' }
     );
 

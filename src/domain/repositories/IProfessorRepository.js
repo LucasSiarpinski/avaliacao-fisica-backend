@@ -7,7 +7,15 @@ class IProfessorRepository {
     throw new Error('Method not implemented');
   }
 
+  async findAllByCampusId(campusId) {
+    throw new Error('Method not implemented');
+  }
+
   async findById(id) {
+    throw new Error('Method not implemented');
+  }
+
+  async findByIdAndCampusId(id, campusId) {
     throw new Error('Method not implemented');
   }
 

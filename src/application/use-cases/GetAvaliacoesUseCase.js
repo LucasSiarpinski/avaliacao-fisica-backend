@@ -3,8 +3,8 @@ class GetAvaliacoesUseCase {
     this.avaliacaoRepository = avaliacaoRepository;
   }
 
-  async execute() {
-    return await this.avaliacaoRepository.findAll();
+  async execute(user) {
+    return await this.avaliacaoRepository.findAllForUser(user);
   }
 }
 

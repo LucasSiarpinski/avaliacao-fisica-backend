@@ -1,8 +1,8 @@
 const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
+const { getJwtSecret } = require('../../config/jwt');
 
 const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || 'meu-tcc-super-secreto-2025';
 
 // Middleware para verificar a AUTENTICAÇÃO (se o token é válido)
 async function authenticateToken(req, res, next) {
@@ -16,7 +16,7 @@ async function authenticateToken(req, res, next) {
 
   try {
     // Verifica se o token é válido usando nosso segredo
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, getJwtSecret());
     
     // Busca o usuário no banco para garantir que ele ainda existe e está ativo
     const user = await prisma.user.findUnique({ where: { id: decoded.userId }});

@@ -1,4 +1,10 @@
 require('dotenv').config();
+
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  console.error('Defina JWT_SECRET no ambiente antes de iniciar o servidor em produção.');
+  process.exit(1);
+}
+
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser'); // <-- NOVO: Importar o cookie-parser

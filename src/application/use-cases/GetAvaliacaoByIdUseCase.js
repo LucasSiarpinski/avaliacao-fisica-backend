@@ -3,8 +3,8 @@ class GetAvaliacaoByIdUseCase {
     this.avaliacaoRepository = avaliacaoRepository;
   }
 
-  async execute(id) {
-    const avaliacao = await this.avaliacaoRepository.findById(id);
+  async execute(id, user) {
+    const avaliacao = await this.avaliacaoRepository.findByIdForUser(id, user);
     if (!avaliacao) {
       throw new Error('Avaliação não encontrada.');
     }

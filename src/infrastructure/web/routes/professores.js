@@ -1,9 +1,12 @@
 // Em routes/professores.js
 
 const express = require('express');
+const { authenticateToken, adminOnly } = require('../middlewares/authMiddleware');
 const ProfessorController = require('../controllers/ProfessorController');
 
 const router = express.Router();
+
+router.use(authenticateToken, adminOnly);
 
 // ROTA: (GET) /api/professores -> Buscar todos os professores
 router.get('/', ProfessorController.getAll);

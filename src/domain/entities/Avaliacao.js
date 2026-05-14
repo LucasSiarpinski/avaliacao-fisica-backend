@@ -32,6 +32,8 @@ class Avaliacao {
     dcCoxa,
     resultados,
     updatedAt,
+    aluno,
+    avaliador,
   }) {
     this.id = id;
     this.dataAvaliacao = dataAvaliacao;
@@ -65,6 +67,8 @@ class Avaliacao {
     this.dcCoxa = dcCoxa;
     this.resultados = resultados;
     this.updatedAt = updatedAt;
+    this.aluno = aluno;
+    this.avaliador = avaliador;
   }
 
   isValid() {
