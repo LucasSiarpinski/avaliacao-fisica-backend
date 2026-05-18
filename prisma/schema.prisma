@@ -46,27 +46,116 @@ model Aluno {
   email          String         @unique
   dataNasc       DateTime
   matricula      String         @unique
-  cpf            String?
+  cpf            String?        @unique
   genero         String?
   telefone       String?
+  endereco       String?
+  profissao      String?
   observacoes    String?        @db.Text
+  objetivo       ObjetivoAluno  @default(SAUDE)
+  status         StatusAluno    @default(ATIVO)
+  
+  // Controle
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
-  anamneseStatus AnamneseStatus @default(PENDING)
-  anamneseSentAt DateTime?
+  deletedAt      DateTime?      // Para Soft Delete (LGPD)
+
+  // Relacionamentos
   campusId       Int
   campus         Campus         @relation(fields: [campusId], references: [id])
   professorId    Int
   professor      User           @relation("ProfessorAlunos", fields: [professorId], references: [id])
+  
+  anamneses      Anamnese[]
   avaliacoes     Avaliacao[]
   documentos     Documento[]
 }
 
+enum ObjetivoAluno {
+  EMAGRECIMENTO
+  HIPERTROFIA
+  CONDICIONAMENTO
+  PERFORMANCE
+  SAUDE
+}
+
+enum StatusAluno {
+  ATIVO
+  INATIVO
+}
+
+// ==========================================
+// MÓDULO DE ANAMNESE E SAÚDE
+// ==========================================
+
+model Anamnese {
+  id                Int       @id @default(autoincrement())
+  dataPreenchimento DateTime? @default(now())
+  status            AnamneseStatus @default(PENDING)
+  termoAceite       Boolean   @default(false)
+  
+  // Relacionamento 1:N (Um aluno pode ter várias anamneses ao longo do tempo)
+  alunoId           Int
+  aluno             Aluno     @relation(fields: [alunoId], references: [id])
+
+  // Sub-módulos da Anamnese
+  dadosMedicos      DadosMedicos?
+  habitos           Habitos?
+  parq              ParQ?
+}
+
 enum AnamneseStatus {
   PENDING
-  SENT
   COMPLETED
 }
+
+model DadosMedicos {
+  id                Int       @id @default(autoincrement())
+  anamneseId        Int       @unique
+  anamnese          Anamnese  @relation(fields: [anamneseId], references: [id], onDelete: Cascade)
+  
+  hipertensao       Boolean   @default(false)
+  diabetes          Boolean   @default(false)
+  problemaCardiaco  Boolean   @default(false)
+  lesoes            String?   @db.Text
+  cirurgias         String?   @db.Text
+  medicamentos      String?   @db.Text
+  alergias          String?   @db.Text
+  restricoes        String?   @db.Text
+  observacoes       String?   @db.Text
+}
+
+model Habitos {
+  id                Int       @id @default(autoincrement())
+  anamneseId        Int       @unique
+  anamnese          Anamnese  @relation(fields: [anamneseId], references: [id], onDelete: Cascade)
+  
+  fumante           Boolean   @default(false)
+  consomeAlcool     Boolean   @default(false)
+  qualidadeSono     String?   // Ex: BOA, REGULAR, RUIM
+  nivelEstresse     String?   // Ex: BAIXO, MEDIO, ALTO
+  praticaAtividade  Boolean   @default(false)
+  tipoAtividade     String?
+  alimentacao       String?   @db.Text
+}
+
+model ParQ {
+  id                Int       @id @default(autoincrement())
+  anamneseId        Int       @unique
+  anamnese          Anamnese  @relation(fields: [anamneseId], references: [id], onDelete: Cascade)
+  
+  pergunta1         Boolean   @default(false) // Problema cardíaco
+  pergunta2         Boolean   @default(false) // Dor no peito na atividade
+  pergunta3         Boolean   @default(false) // Dor no peito no último mês
+  pergunta4         Boolean   @default(false) // Desequilíbrio/Tontura
+  pergunta5         Boolean   @default(false) // Problema ósseo/articular
+  pergunta6         Boolean   @default(false) // Medicamento pressão/coração
+  pergunta7         Boolean   @default(false) // Outro impedimento físico
+}
+
+// ==========================================
+// MÓDULO DE AVALIAÇÃO FÍSICA (Base inicial)
+// ==========================================
 
 model Avaliacao {
   id         Int      @id @default(autoincrement())

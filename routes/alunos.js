@@ -1,127 +1,171 @@
-// app/(main)/alunos/page.js
+const express = require('express');
+const { PrismaClient } = require('@prisma/client');
+const { authenticateToken } = require('../middlewares/authMiddleware');
 
-"use client";
+const router = express.Router();
+const prisma = new PrismaClient();
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation'; // <-- 1. PRECISAMOS IMPORTAR O HOOK
-import { toast } from 'react-hot-toast';
-import styles from './alunos.module.css';
-// O modal não é mais usado aqui, podemos remover o import se quisermos
-// import AlunoModal from '@/components/AlunoModal'; 
-import { useAuth } from '../../../contexts/AuthContext';
-import api from '../../../services/api';
+// Aplicar o middleware para todas as rotas deste arquivo
+router.use(authenticateToken);
 
-export default function AlunosPage() {
-  const router = useRouter(); // <-- 2. PRECISAMOS INICIAR O ROUTER AQUI
+// GET /api/alunos - Lista alunos (oculta os excluídos logicamente)
+router.get('/', async (req, res) => {
+  try {
+    const alunos = await prisma.aluno.findMany({
+      where: {
+        campusId: req.user.campusId,
+        deletedAt: null // Não retorna os excluídos via soft-delete
+      },
+      include: {
+        anamneses: {
+          orderBy: { dataPreenchimento: 'desc' },
+          take: 1,
+          select: { status: true }
+        }
+      },
+      orderBy: { id: 'desc' }
+    });
+    res.json(alunos);
+  } catch (error) {
+    console.error('Erro ao buscar alunos:', error);
+    res.status(500).json({ error: 'Ocorreu um erro ao buscar os alunos.' });
+  }
+});
 
-  const [alunos, setAlunos] = useState([]);
-  const [loading, setLoading] = useState(true);
-  
-  // Seus estados de busca
-  const [termoBusca, setTermoBusca] = useState('');
-  const [categoriaBusca, setCategoriaBusca] = useState('nome');
+// GET /api/alunos/:id - Buscar um aluno específico e suas anamneses
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const aluno = await prisma.aluno.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        anamneses: {
+          orderBy: { dataPreenchimento: 'desc' },
+          take: 1,
+          include: {
+            dadosMedicos: true,
+            habitos: true,
+            parq: true
+          }
+        }
+      }
+    });
+    
+    if (!aluno || aluno.deletedAt) return res.status(404).json({ error: 'Aluno não encontrado' });
+    if (aluno.campusId !== req.user.campusId) return res.status(403).json({ error: 'Acesso negado a este aluno.' });
+    
+    res.json(aluno);
+  } catch (error) {
+    console.error('Erro ao buscar aluno:', error);
+    res.status(500).json({ error: 'Erro interno ao buscar aluno.' });
+  }
+});
 
-  const { isAuthenticated } = useAuth();
+// POST /api/alunos - Criar novo aluno
+router.post('/', async (req, res) => {
+  try {
+    const { nome, email, dataNasc, matricula, cpf, telefone, genero, observacoes, endereco, profissao, objetivo, status } = req.body;
+    
+    const novoAluno = await prisma.aluno.create({
+      data: {
+        nome,
+        email,
+        dataNasc: new Date(dataNasc),
+        matricula,
+        cpf,
+        telefone,
+        genero,
+        observacoes,
+        endereco,
+        profissao,
+        objetivo,
+        status,
+        professorId: req.user.id,
+        campusId: req.user.campusId,
+      }
+    });
 
-  const fetchAlunos = async () => {
-    try {
-      setLoading(true);
-      const response = await api.get('/alunos');
-      setAlunos(response.data);
-    } catch (error) {
-      console.error("Erro ao buscar alunos:", error);
-      toast.error("Não foi possível carregar a lista de alunos.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    res.status(201).json(novoAluno);
+  } catch (error) {
+    console.error('Erro ao criar aluno:', error);
+    res.status(500).json({ error: 'Erro ao salvar aluno. Email ou Matrícula podem já existir.' });
+  }
+});
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchAlunos();
-    }
-  }, [isAuthenticated]);
+// PUT /api/alunos/:id - Atualizar dados do aluno (Passos Iniciais do Wizard)
+router.put('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nome, email, dataNasc, matricula, cpf, telefone, genero, observacoes, endereco, profissao, objetivo, status } = req.body;
+    
+    const aluno = await prisma.aluno.update({
+      where: { id: parseInt(id) },
+      data: {
+        nome,
+        email,
+        dataNasc: dataNasc ? new Date(dataNasc) : undefined,
+        matricula,
+        cpf,
+        telefone,
+        genero,
+        observacoes,
+        endereco,
+        profissao,
+        objetivo,
+        status
+      }
+    });
 
-  const alunosFiltrados = alunos.filter(aluno => {
-    if (!termoBusca) return true;
-    const buscaLowerCase = termoBusca.toLowerCase();
-    switch (categoriaBusca) {
-      case 'id': return String(aluno.id).includes(termoBusca);
-      case 'matricula': return String(aluno.matricula).toLowerCase().includes(buscaLowerCase);
-      case 'cpf': return aluno.cpf?.includes(termoBusca);
-      case 'nome': default: return aluno.nome.toLowerCase().includes(buscaLowerCase);
-    }
-  });
+    res.json(aluno);
+  } catch (error) {
+    console.error('Erro ao atualizar aluno:', error);
+    res.status(500).json({ error: 'Erro interno ao atualizar aluno.' });
+  }
+});
 
-  return (
-    <div className={styles.container}>
-      <header className={styles.header}>
-        <h1 className={styles.title}>Gerenciamento de Alunos</h1>
-        {/* Agora este botão vai funcionar, pois a variável 'router' existe */}
-        <button onClick={() => router.push('/alunos/novo')} className={styles.newStudentButton}>
-          + Novo Aluno
-        </button>
-      </header>
-      
-      {/* Container de Busca */}
-      <div className={styles.searchContainer}>
-        <select
-          className={styles.searchCategory}
-          value={categoriaBusca}
-          onChange={(e) => setCategoriaBusca(e.target.value)}
-        >
-          <option value="nome">Nome</option>
-          <option value="id">ID</option>
-          <option value="matricula">Matrícula</option>
-          <option value="cpf">CPF</option>
-        </select>
-        <input
-          type="text"
-          placeholder={`Buscar por ${categoriaBusca}...`}
-          className={styles.searchBar}
-          value={termoBusca}
-          onChange={(e) => setTermoBusca(e.target.value)}
-        />
-      </div>
+// POST /api/alunos/:id/anamnese - Criar nova Anamnese (Histórico 1:N)
+router.post('/:id/anamnese', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { dadosMedicos, habitos, parq, termoAceite } = req.body;
+    
+    // Opcional: Aqui poderíamos inativar as anteriores se tivéssemos um campo 'active'
+    // Mas por simplicidade, a mais recente (orderBy desc) sempre será a ativa.
 
-      {/* Container da Tabela */}
-      <div className={styles.tableContainer}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Matrícula</th>
-              <th>Nome Completo</th>
-              <th>CPF</th>
-              <th>Status Anamnese</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan="6">Carregando alunos...</td></tr>
-            ) : alunosFiltrados.length === 0 ? (
-              <tr><td colSpan="6">Nenhum aluno encontrado. Clique em "+ Novo Aluno" para começar.</td></tr>
-            ) : (
-              alunosFiltrados.map((aluno) => (
-                <tr key={aluno.id}>
-                  <td>{aluno.id}</td>
-                  <td>{aluno.matricula}</td>
-                  <td>{aluno.nome}</td>
-                  <td>{aluno.cpf || 'N/A'}</td>
-                  <td>{aluno.anamneseStatus}</td>
-                  <td>
-                    <div className={styles.actions}>
-                      <button className={`${styles.actionButton} ${styles.editButton}`}>Editar</button>
-                      <button className={`${styles.actionButton} ${styles.deleteButton}`}>Excluir</button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
+    const anamnese = await prisma.anamnese.create({
+      data: {
+        alunoId: parseInt(id),
+        status: 'COMPLETED',
+        termoAceite: termoAceite,
+        dadosMedicos: { create: dadosMedicos },
+        habitos: { create: habitos },
+        parq: { create: parq }
+      }
+    });
+
+    res.status(201).json(anamnese);
+  } catch (error) {
+    console.error('Erro ao salvar anamnese:', error);
+    res.status(500).json({ error: 'Erro interno ao processar anamnese.' });
+  }
+});
+
+// DELETE /api/alunos/:id - Excluir aluno (Soft Delete - Exigência LGPD)
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Soft Delete: Atualiza o campo deletedAt em vez de apagar do banco
+    await prisma.aluno.update({
+      where: { id: parseInt(id) },
+      data: { deletedAt: new Date() }
+    });
+    
+    res.status(204).send();
+  } catch (error) {
+    console.error('Erro ao excluir aluno:', error);
+    res.status(500).json({ error: 'Ocorreu um erro ao excluir o aluno.' });
+  }
+});
+
+module.exports = router;
