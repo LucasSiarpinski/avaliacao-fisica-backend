@@ -98,6 +98,11 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const { nome, email, dataNasc, matricula, cpf, telefone, genero, observacoes, endereco, profissao, objetivo, status } = req.body;
     
+    const existingAluno = await prisma.aluno.findUnique({ where: { id: parseInt(id) } });
+    if (!existingAluno || existingAluno.campusId !== req.user.campusId) {
+      return res.status(403).json({ error: 'Acesso negado ao aluno.' });
+    }
+
     const aluno = await prisma.aluno.update({
       where: { id: parseInt(id) },
       data: {
@@ -119,6 +124,7 @@ router.put('/:id', async (req, res) => {
     res.json(aluno);
   } catch (error) {
     console.error('Erro ao atualizar aluno:', error);
+    require('fs').appendFileSync('error_put_aluno.log', new Date().toISOString() + ' - ' + (error.stack || error) + '\n\n');
     res.status(500).json({ error: 'Erro interno ao atualizar aluno.' });
   }
 });
@@ -129,6 +135,11 @@ router.post('/:id/anamnese', async (req, res) => {
     const { id } = req.params;
     const { dadosMedicos, habitos, parq, termoAceite } = req.body;
     
+    const existingAluno = await prisma.aluno.findUnique({ where: { id: parseInt(id) } });
+    if (!existingAluno || existingAluno.campusId !== req.user.campusId) {
+      return res.status(403).json({ error: 'Acesso negado ao aluno.' });
+    }
+
     // Opcional: Aqui poderíamos inativar as anteriores se tivéssemos um campo 'active'
     // Mas por simplicidade, a mais recente (orderBy desc) sempre será a ativa.
 
@@ -155,6 +166,11 @@ router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
+    const existingAluno = await prisma.aluno.findUnique({ where: { id: parseInt(id) } });
+    if (!existingAluno || existingAluno.campusId !== req.user.campusId) {
+      return res.status(403).json({ error: 'Acesso negado ao aluno.' });
+    }
+
     // Soft Delete: Atualiza o campo deletedAt em vez de apagar do banco
     await prisma.aluno.update({
       where: { id: parseInt(id) },

@@ -14,7 +14,8 @@ model Campus {
   name   String @unique
   city   String
   users  User[]
-  alunos Aluno[]
+  alunos           Aluno[]
+  messageTemplates MessageTemplate[]
 }
 
 model User {
@@ -25,6 +26,11 @@ model User {
   createdAt         DateTime   @default(now())
   role              UserRole   @default(PROFESSOR)
   status            UserStatus @default(ACTIVE)
+  telefone          String?
+  cpf               String?    @unique
+  matricula         String?    @unique
+  foto              String?
+  ultimoAcesso      DateTime?
   campusId          Int
   campus            Campus     @relation(fields: [campusId], references: [id])
   alunosCadastrados Aluno[]    @relation("ProfessorAlunos")
@@ -162,6 +168,7 @@ model Avaliacao {
   data       DateTime @default(now())
   tipo       String
   resultados Json
+  deletedAt  DateTime?
   alunoId    Int
   aluno      Aluno    @relation(fields: [alunoId], references: [id])
 }
@@ -174,4 +181,17 @@ model Documento {
   uploadAt DateTime @default(now())
   alunoId  Int
   aluno    Aluno    @relation(fields: [alunoId], references: [id])
+}
+
+// ==========================================
+// MÓDULO DE RELATÓRIOS E COMUNICAÇÃO
+// ==========================================
+
+model MessageTemplate {
+  id        Int      @id @default(autoincrement())
+  title     String
+  body      String   @db.Text
+  campusId  Int
+  campus    Campus   @relation(fields: [campusId], references: [id])
+  createdAt DateTime @default(now())
 }

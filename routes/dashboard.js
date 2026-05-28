@@ -29,12 +29,12 @@ router.get('/kpis', async (req, res) => {
 
     // 3. Avaliações no Mês
     const avaliacoesMes = await prisma.avaliacao.count({
-      where: { aluno: { campusId }, data: { gte: startOfMonth } }
+      where: { aluno: { campusId }, data: { gte: startOfMonth }, deletedAt: null }
     });
 
     // 6. Avaliações Hoje
     const avaliacoesHoje = await prisma.avaliacao.count({
-      where: { aluno: { campusId }, data: { gte: startOfDay, lte: endOfDay } }
+      where: { aluno: { campusId }, data: { gte: startOfDay, lte: endOfDay }, deletedAt: null }
     });
 
     // Buscar alunos para calcular risco e anamneses pendentes
