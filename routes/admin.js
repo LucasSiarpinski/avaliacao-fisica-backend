@@ -60,7 +60,7 @@ router.get('/professors', authenticateToken, adminOnly, async (req, res) => {
   try {
     const professors = await prisma.user.findMany({
       where: { 
-        role: 'PROFESSOR',
+        role: { in: ['PROFESSOR', 'ADMIN'] },
         campusId: req.user.campusId 
       },
       select: {
