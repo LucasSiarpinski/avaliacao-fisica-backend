@@ -12,7 +12,8 @@ router.post('/', authenticateToken, async (req, res) => {
   // Agora pegamos TODOS os campos possíveis do body
   const { 
     nome, email, dataNasc, matricula, cpf, genero, telefone,
-    altura, peso, objetivos, historicoMedico, medicamentosEmUso, habitos, observacoes 
+    altura, peso, objetivos, historicoMedico, medicamentosEmUso, habitos, observacoes,
+    parq_q1, parq_q2, parq_q3, parq_q4, parq_q5, parq_q6, parq_q7
   } = req.body;
   
   const professorLogado = req.user;
@@ -25,13 +26,27 @@ router.post('/', authenticateToken, async (req, res) => {
   try {
     const novoAluno = await prisma.aluno.create({
       data: {
-        nome, email, dataNasc: new Date(dataNasc), matricula, cpf, genero, telefone,
-        // Converte para Float ou define como null se não for enviado
+        nome,
+        email,
+        dataNasc: new Date(dataNasc),
+        matricula,
+        cpf: cpf || null,
+        genero: genero || null,
+        telefone: telefone || null,
         altura: altura ? parseFloat(altura) : null,
         peso: peso ? parseFloat(peso) : null,
-        objetivos, historicoMedico, medicamentosEmUso, habitos, observacoes,
-        
-        // As conexões continuam as mesmas
+        objetivos: objetivos || null,
+        historicoMedico: historicoMedico || null,
+        medicamentosEmUso: medicamentosEmUso || null,
+        habitos: habitos || null,
+        observacoes: observacoes || null,
+        parq_q1: parq_q1 || null,
+        parq_q2: parq_q2 || null,
+        parq_q3: parq_q3 || null,
+        parq_q4: parq_q4 || null,
+        parq_q5: parq_q5 || null,
+        parq_q6: parq_q6 || null,
+        parq_q7: parq_q7 || null,
         professorId: professorLogado.id,
         campusId: professorLogado.campusId,
       },
@@ -82,10 +97,21 @@ router.get('/:id', authenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const professorId = req.user.id;
-  const dataToUpdate = req.body;
+  const dataToUpdate = { ...req.body };
 
-  // --- A CORREÇÃO ESTÁ AQUI ---
-  
+  // Remove campos de relacionamento ou imutáveis que causariam erro no Prisma
+  delete dataToUpdate.id;
+  delete dataToUpdate.professorId;
+  delete dataToUpdate.campusId;
+  delete dataToUpdate.createdAt;
+  delete dataToUpdate.updatedAt;
+  delete dataToUpdate.campus;
+  delete dataToUpdate.professor;
+  delete dataToUpdate.avaliacoes;
+  delete dataToUpdate.documentos;
+  delete dataToUpdate.anamneseSentAt;
+  delete dataToUpdate.idade;
+
   // 1. Converte a data de nascimento, se ela foi enviada
   if (dataToUpdate.dataNasc && typeof dataToUpdate.dataNasc === 'string') {
     dataToUpdate.dataNasc = new Date(dataToUpdate.dataNasc);
@@ -94,15 +120,14 @@ router.put('/:id', authenticateToken, async (req, res) => {
   // 2. Converte a ALTURA para Float, se ela foi enviada
   if (dataToUpdate.altura && typeof dataToUpdate.altura === 'string') {
     dataToUpdate.altura = parseFloat(dataToUpdate.altura);
-  } else if (dataToUpdate.altura === '') {
-    // Se o campo for enviado vazio, garanta que ele vire null
+  } else if (dataToUpdate.altura === '' || dataToUpdate.altura === null) {
     dataToUpdate.altura = null;
   }
 
   // 3. Converte o PESO para Float, se ele foi enviado
   if (dataToUpdate.peso && typeof dataToUpdate.peso === 'string') {
     dataToUpdate.peso = parseFloat(dataToUpdate.peso);
-  } else if (dataToUpdate.peso === '') {
+  } else if (dataToUpdate.peso === '' || dataToUpdate.peso === null) {
     dataToUpdate.peso = null;
   }
 
@@ -177,6 +202,26 @@ router.patch('/:id/status', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error("Erro ao atualizar status do aluno:", error);
     res.status(500).json({ error: "Erro ao atualizar status do aluno." });
+  }
+});
+
+// --- ROTA PARA LISTAR TODAS AS AVALIAÇÕES DE UM ALUNO ---
+router.get('/:id/avaliacoes', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const avaliacoes = await prisma.avaliacao.findMany({
+      where: { alunoId: parseInt(id) },
+      orderBy: { dataAvaliacao: 'desc' },
+      include: {
+        avaliador: {
+          select: { name: true, email: true },
+        },
+      },
+    });
+    res.json(avaliacoes);
+  } catch (error) {
+    console.error('Erro ao buscar avaliações do aluno:', error);
+    res.status(500).json({ error: 'Não foi possível buscar as avaliações deste aluno.' });
   }
 });
 

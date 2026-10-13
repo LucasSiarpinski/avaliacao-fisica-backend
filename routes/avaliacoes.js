@@ -136,7 +136,10 @@ router.put('/:id', async (req, res) => {
     circCintura, circAbdomem, circQuadril, circBracoRelaxadoD, circBracoRelaxadoE,
     
     // Dobras
-    dcTriceps, dcSubescapular, dcPeitoral, dcAxilarMedia, dcSuprailiaca, dcAbdominal, dcCoxa
+    dcTriceps, dcSubescapular, dcPeitoral, dcAxilarMedia, dcSuprailiaca, dcAbdominal, dcCoxa,
+
+    // Resultados calculados (JSON)
+    resultados
   } = req.body;
 
   // --- TRATAMENTO DE DADOS ---
@@ -166,7 +169,10 @@ router.put('/:id', async (req, res) => {
     dcAxilarMedia: toNumberOrNull(dcAxilarMedia),
     dcSuprailiaca: toNumberOrNull(dcSuprailiaca),
     dcAbdominal: toNumberOrNull(dcAbdominal),
-    dcCoxa: toNumberOrNull(dcCoxa)
+    dcCoxa: toNumberOrNull(dcCoxa),
+
+    // JSON com cálculos automáticos
+    resultados: resultados || null,
   };
 
   try {
@@ -181,5 +187,19 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// --- ROTA DELETE /:id ---
+// Exclui uma avaliação física
+router.delete('/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await prisma.avaliacao.delete({
+      where: { id: parseInt(id) },
+    });
+    res.status(204).send();
+  } catch (error) {
+    console.error(`Erro ao excluir avaliação ${id}:`, error);
+    res.status(500).json({ error: 'Não foi possível excluir a avaliação.' });
+  }
+});
 
 module.exports = router;
