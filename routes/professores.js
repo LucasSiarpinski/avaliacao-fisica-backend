@@ -74,10 +74,8 @@ router.post('/', async (req, res) => {
 // ROTA: (PUT) /api/professores/:id -> Atualizar um professor
 router.put('/:id', async (req, res) => {
     const { id } = req.params;
-    // ✅ CORRIGIDO: Pegando os dados do corpo da requisição
-    const { name, email, password, role, campusId } = req.body;
+    const { name, email, password, role, campusId, status } = req.body;
 
-    // ✅ CORRIGIDO: Adicionando o bloco 'try' que estava faltando
     try {
         const updateData = {
             name,
@@ -85,6 +83,10 @@ router.put('/:id', async (req, res) => {
             role,
             campusId: parseInt(campusId),
         };
+
+        if (status === 'ACTIVE' || status === 'INACTIVE') {
+            updateData.status = status;
+        }
 
         // Só atualiza a senha se uma nova foi enviada
         if (password) {
@@ -101,6 +103,35 @@ router.put('/:id', async (req, res) => {
             return res.status(409).json({ message: "Email já em uso por outro usuário." });
         }
         res.status(500).json({ message: "Erro ao atualizar professor.", error: error.message });
+    }
+});
+
+// ROTA: (PATCH) /api/professores/:id/status -> Ativar/Desativar professor
+router.patch('/:id/status', async (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (status !== 'ACTIVE' && status !== 'INACTIVE') {
+        return res.status(400).json({ message: "Status inválido. Use ACTIVE ou INACTIVE." });
+    }
+
+    try {
+        const updatedProfessor = await prisma.user.update({
+            where: { id: parseInt(id) },
+            data: { status },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                status: true,
+                campusId: true,
+                campus: true,
+            },
+        });
+        res.status(200).json(updatedProfessor);
+    } catch (error) {
+        res.status(500).json({ message: "Erro ao atualizar status do professor.", error: error.message });
     }
 });
 
