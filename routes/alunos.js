@@ -23,6 +23,12 @@ router.post('/', authenticateToken, async (req, res) => {
     return res.status(400).json({ error: 'Nome, email, data de nascimento e matrícula são obrigatórios.' });
   }
 
+  // Verifica se alguma anamnese ou PAR-Q foi preenchida
+  const temAnamnese = Boolean(
+    objetivos || historicoMedico || medicamentosEmUso || habitos || observacoes ||
+    parq_q1 || parq_q2 || parq_q3 || parq_q4 || parq_q5 || parq_q6 || parq_q7
+  );
+
   try {
     const novoAluno = await prisma.aluno.create({
       data: {
@@ -47,6 +53,8 @@ router.post('/', authenticateToken, async (req, res) => {
         parq_q5: parq_q5 || null,
         parq_q6: parq_q6 || null,
         parq_q7: parq_q7 || null,
+        anamneseStatus: temAnamnese ? 'COMPLETED' : 'PENDING',
+        status: req.body.status === 'INATIVO' ? 'INATIVO' : 'ATIVO',
         professorId: professorLogado.id,
         campusId: professorLogado.campusId,
       },
@@ -129,6 +137,15 @@ router.put('/:id', authenticateToken, async (req, res) => {
     dataToUpdate.peso = parseFloat(dataToUpdate.peso);
   } else if (dataToUpdate.peso === '' || dataToUpdate.peso === null) {
     dataToUpdate.peso = null;
+  }
+
+  // 4. Atualiza anamneseStatus para COMPLETED se houver anamnese ou PAR-Q preenchido
+  const temAnamnese = Boolean(
+    dataToUpdate.objetivos || dataToUpdate.historicoMedico || dataToUpdate.medicamentosEmUso || dataToUpdate.habitos || dataToUpdate.observacoes ||
+    dataToUpdate.parq_q1 || dataToUpdate.parq_q2 || dataToUpdate.parq_q3 || dataToUpdate.parq_q4 || dataToUpdate.parq_q5 || dataToUpdate.parq_q6 || dataToUpdate.parq_q7
+  );
+  if (temAnamnese) {
+    dataToUpdate.anamneseStatus = 'COMPLETED';
   }
 
   try {
