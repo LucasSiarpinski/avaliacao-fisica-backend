@@ -3,11 +3,10 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 const { authenticateToken } = require('../middlewares/authMiddleware');
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // Garante que o diretório de uploads exista
 const uploadDir = path.join(__dirname, '..', 'uploads', 'documentos');
@@ -29,24 +28,25 @@ const storage = multer.diskStorage({
   },
 });
 
-// Filtro de formatos permitidos: PDF, Word (doc/docx), PNG, JPEG
+// Mapeamento estrito: extensão permitida E mime-type correspondente
+const allowedMimesByExt = {
+  '.pdf': ['application/pdf'],
+  '.doc': ['application/msword'],
+  '.docx': ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+  '.png': ['image/png'],
+  '.jpg': ['image/jpeg', 'image/pjpeg'],
+  '.jpeg': ['image/jpeg', 'image/pjpeg'],
+};
+
+// Filtro de formatos permitidos com validação estrita (Extensão E MimeType)
 const fileFilter = (req, file, cb) => {
-  const allowedExtensions = ['.pdf', '.doc', '.docx', '.png', '.jpg', '.jpeg'];
   const ext = path.extname(file.originalname).toLowerCase();
+  const allowedMimes = allowedMimesByExt[ext];
 
-  const allowedMimeTypes = [
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'image/png',
-    'image/jpeg',
-    'image/pjpeg',
-  ];
-
-  if (allowedExtensions.includes(ext) || allowedMimeTypes.includes(file.mimetype)) {
+  if (allowedMimes && allowedMimes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Formato de arquivo não suportado. Permita apenas PDF, Word (.doc, .docx), PNG e JPEG.'), false);
+    cb(new Error('Formato de arquivo não suportado. O arquivo deve possuir simultaneamente extensão permitida (.pdf, .doc, .docx, .png, .jpg, .jpeg) e MIME type correspondente.'), false);
   }
 };
 

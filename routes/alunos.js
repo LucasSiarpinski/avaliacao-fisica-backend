@@ -1,11 +1,10 @@
 // routes/alunos.js
 
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 const { authenticateToken } = require('../middlewares/authMiddleware');
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // --- ROTA PARA CRIAR UM NOVO ALUNO (VERSÃO COMPLETA) ---
 router.post('/', authenticateToken, async (req, res) => {

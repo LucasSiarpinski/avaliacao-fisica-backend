@@ -1,10 +1,9 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 const { authenticateToken, adminOnly } = require('../middlewares/authMiddleware');
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // --- ROTA PARA CRIAR UM NOVO PROFESSOR ---
 // Método: POST | Endpoint: /api/admin/professors

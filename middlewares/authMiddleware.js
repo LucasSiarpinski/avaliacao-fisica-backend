@@ -1,8 +1,11 @@
 const jwt = require('jsonwebtoken');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 
-const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || 'meu-tcc-super-secreto-2025';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('FATAL: A variável de ambiente JWT_SECRET não está definida. O servidor não pode iniciar com segurança.');
+  process.exit(1);
+}
 
 // Middleware para verificar a AUTENTICAÇÃO (se o token é válido)
 async function authenticateToken(req, res, next) {

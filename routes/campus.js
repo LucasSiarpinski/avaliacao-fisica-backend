@@ -1,9 +1,7 @@
 // Em /routes/campus.js
 
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
-
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 const router = express.Router();
 
 // A rota base é '/', que se tornará '/api/campus' no server.js

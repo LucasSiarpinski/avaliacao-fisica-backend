@@ -1,19 +1,32 @@
-// Em routes/professores.js
+// routes/professores.js
 
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
+const prisma = require('../lib/prisma');
+const { authenticateToken, adminOnly } = require('../middlewares/authMiddleware');
 
-const prisma = new PrismaClient();
 const router = express.Router();
+
+// Aplica autenticação e verificação de privilégios ADMIN a todas as rotas de professores
+router.use(authenticateToken, adminOnly);
+
+// Projeção segura de usuário omitindo explicitamente a senha (password)
+const userSelectWithoutPassword = {
+    id: true,
+    name: true,
+    email: true,
+    role: true,
+    status: true,
+    campusId: true,
+    campus: true,
+    createdAt: true,
+};
 
 // ROTA: (GET) /api/professores -> Buscar todos os professores
 router.get('/', async (req, res) => {
     try {
         const professores = await prisma.user.findMany({
-            include: {
-                campus: true,
-            },
+            select: userSelectWithoutPassword,
             orderBy: {
                 name: 'asc',
             },
@@ -30,6 +43,7 @@ router.get('/:id', async (req, res) => {
     try {
         const professor = await prisma.user.findUnique({
             where: { id: parseInt(id) },
+            select: userSelectWithoutPassword,
         });
         if (!professor) {
             return res.status(404).json({ message: "Professor não encontrado." });
@@ -42,25 +56,23 @@ router.get('/:id', async (req, res) => {
 
 // ROTA: (POST) /api/professores -> Criar um novo professor
 router.post('/', async (req, res) => {
-    // ✅ CORRIGIDO: Pegando os dados do corpo da requisição
     const { name, email, password, role, campusId } = req.body;
 
-    // ✅ CORRIGIDO: Adicionando a condição para a verificação
-    if (!password) {
-        return res.status(400).json({ message: "A senha é obrigatória." });
+    if (!name || !email || !password || !campusId) {
+        return res.status(400).json({ message: "Todos os campos obrigatórios devem ser fornecidos (nome, email, senha, campusId)." });
     }
 
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
         const newProfessor = await prisma.user.create({
-            // ✅ CORRIGIDO: Passando todos os dados necessários
             data: {
                 name,
                 email,
                 password: hashedPassword,
-                role,
+                role: role || 'PROFESSOR',
                 campusId: parseInt(campusId),
             },
+            select: userSelectWithoutPassword,
         });
         res.status(201).json(newProfessor);
     } catch (error) {
@@ -96,6 +108,7 @@ router.put('/:id', async (req, res) => {
         const updatedProfessor = await prisma.user.update({
             where: { id: parseInt(id) },
             data: updateData,
+            select: userSelectWithoutPassword,
         });
         res.status(200).json(updatedProfessor);
     } catch (error) {
@@ -119,15 +132,7 @@ router.patch('/:id/status', async (req, res) => {
         const updatedProfessor = await prisma.user.update({
             where: { id: parseInt(id) },
             data: { status },
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                role: true,
-                status: true,
-                campusId: true,
-                campus: true,
-            },
+            select: userSelectWithoutPassword,
         });
         res.status(200).json(updatedProfessor);
     } catch (error) {
