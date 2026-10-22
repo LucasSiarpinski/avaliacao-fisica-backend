@@ -21,14 +21,16 @@ const allowedOrigins = [
   'http://127.0.0.1:3000',
   'http://192.168.1.21:3000',
   'http://26.11.93.67:3000',
-];
+  process.env.FRONTEND_URL,
+].filter(Boolean);
 
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Permite requisições sem origin (mobile apps, curl, etc.), origens locais, FRONTEND_URL e qualquer subdomínio da Vercel
+    if (!origin || allowedOrigins.includes(origin) || (origin && origin.endsWith('.vercel.app'))) {
       callback(null, true);
     } else {
-      callback(new Error('CORS origin não permitido'));
+      callback(new Error(`CORS origin não permitido: ${origin}`));
     }
   },
   credentials: true,
