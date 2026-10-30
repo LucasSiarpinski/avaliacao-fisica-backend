@@ -63,6 +63,10 @@ router.post('/', async (req, res) => {
         alunoId: aluno.id,
         avaliadorId: avaliadorId,
 
+        // --- Copiando Antropometria inicial do Aluno (se cadastrada) ---
+        peso: aluno.peso,
+        altura: aluno.altura,
+
         // --- Copiando dados da Anamnese ---
         objetivos: aluno.objetivos,
         historicoMedico: aluno.historicoMedico,
@@ -99,9 +103,24 @@ router.get('/:id', async (req, res) => {
     const avaliacao = await prisma.avaliacao.findUnique({
       where: { id: parseInt(id) },
       include: {
-        // Incluímos o nome do aluno para mostrar no título (ex: "Avaliando: Giovana")
         aluno: {
-          select: { nome: true },
+          select: {
+            id: true,
+            nome: true,
+            matricula: true,
+            cpf: true,
+            telefone: true,
+            dataNasc: true,
+            genero: true,
+            email: true,
+          },
+        },
+        avaliador: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
         },
       },
     });
