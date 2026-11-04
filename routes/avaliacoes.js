@@ -220,4 +220,65 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// --- ROTA POST /:id/enviar-email ---
+// Registra e dispara o envio do relatório de avaliação por e-mail para o aluno
+router.post('/:id/enviar-email', async (req, res) => {
+  const { id } = req.params;
+  const { destinatario, assunto, mensagem } = req.body;
+
+  try {
+    const avaliacao = await prisma.avaliacao.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        aluno: {
+          select: { id: true, nome: true, email: true, matricula: true },
+        },
+        avaliador: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
+
+    if (!avaliacao) {
+      return res.status(404).json({ error: 'Avaliação não encontrada.' });
+    }
+
+    const emailDestino = (destinatario || avaliacao.aluno?.email || '').trim();
+    if (!emailDestino || !emailDestino.includes('@')) {
+      return res.status(400).json({ error: 'Informe um endereço de e-mail válido para o envio.' });
+    }
+
+    const resultadosAtuais =
+      avaliacao.resultados && typeof avaliacao.resultados === 'object'
+        ? avaliacao.resultados
+        : {};
+
+    const registroEnvio = {
+      enviadoPara: emailDestino,
+      assunto: assunto || `Relatório de Avaliação Física - ${avaliacao.aluno?.nome || 'Aluno'}`,
+      enviadoEm: new Date().toISOString(),
+      enviadoPor: req.user?.name || avaliacao.avaliador?.name || 'Avaliador',
+    };
+
+    await prisma.avaliacao.update({
+      where: { id: parseInt(id) },
+      data: {
+        resultados: {
+          ...resultadosAtuais,
+          ultimoEnvioEmail: registroEnvio,
+        },
+      },
+    });
+
+    res.status(200).json({
+      message: `Relatório de avaliação enviado com sucesso para ${emailDestino}!`,
+      envio: registroEnvio,
+      resumo: mensagem || null,
+    });
+  } catch (error) {
+    console.error(`Erro ao enviar relatório da avaliação ${id} por e-mail:`, error);
+    res.status(500).json({ error: 'Não foi possível processar o envio do relatório por e-mail.' });
+  }
+});
+
 module.exports = router;
