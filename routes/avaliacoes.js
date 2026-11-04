@@ -235,7 +235,7 @@ router.delete('/:id', async (req, res) => {
 // Gera o PDF oficial da avaliação e dispara o envio por e-mail via SMTP
 router.post('/:id/enviar-email', async (req, res) => {
   const { id } = req.params;
-  const { destinatario, assunto, mensagem, smtpConfig } = req.body;
+  const { destinatario, assunto, mensagem, smtpConfig, jaEnviadoPeloFrontend, infoFrontend } = req.body;
 
   try {
     const avaliacao = await prisma.avaliacao.findUnique({
@@ -278,14 +278,17 @@ router.post('/:id/enviar-email', async (req, res) => {
       return res.status(400).json({ error: 'Informe um endereço de e-mail válido para o envio.' });
     }
 
-    const infoEnvio = await enviarEmailComLaudoPdf({
-      destinatario: emailDestino,
-      assunto,
-      mensagem,
-      avaliacao,
-      historicoAvaliacoes: avaliacao.aluno?.avaliacoes || [],
-      smtpConfig,
-    });
+    let infoEnvio = infoFrontend || null;
+    if (!jaEnviadoPeloFrontend) {
+      infoEnvio = await enviarEmailComLaudoPdf({
+        destinatario: emailDestino,
+        assunto,
+        mensagem,
+        avaliacao,
+        historicoAvaliacoes: avaliacao.aluno?.avaliacoes || [],
+        smtpConfig,
+      });
+    }
 
     const resultadosAtuais =
       avaliacao.resultados && typeof avaliacao.resultados === 'object'
