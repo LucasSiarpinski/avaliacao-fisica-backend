@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const prisma = require('../lib/prisma');
+const { enviarEmailComLaudoPdf } = require('../lib/laudoPdfService');
 
 // --- AUTENTICAÇÃO ---
 // Importa o middleware de autenticação
@@ -113,6 +114,16 @@ router.get('/:id', async (req, res) => {
             dataNasc: true,
             genero: true,
             email: true,
+            avaliacoes: {
+              orderBy: { dataAvaliacao: 'desc' },
+              select: {
+                id: true,
+                dataAvaliacao: true,
+                peso: true,
+                altura: true,
+                resultados: true,
+              },
+            },
           },
         },
         avaliador: {
@@ -221,17 +232,36 @@ router.delete('/:id', async (req, res) => {
 });
 
 // --- ROTA POST /:id/enviar-email ---
-// Registra e dispara o envio do relatório de avaliação por e-mail para o aluno
+// Gera o PDF oficial da avaliação e dispara o envio por e-mail via SMTP
 router.post('/:id/enviar-email', async (req, res) => {
   const { id } = req.params;
-  const { destinatario, assunto, mensagem } = req.body;
+  const { destinatario, assunto, mensagem, smtpConfig } = req.body;
 
   try {
     const avaliacao = await prisma.avaliacao.findUnique({
       where: { id: parseInt(id) },
       include: {
         aluno: {
-          select: { id: true, nome: true, email: true, matricula: true },
+          select: {
+            id: true,
+            nome: true,
+            email: true,
+            matricula: true,
+            cpf: true,
+            telefone: true,
+            dataNasc: true,
+            genero: true,
+            avaliacoes: {
+              orderBy: { dataAvaliacao: 'desc' },
+              select: {
+                id: true,
+                dataAvaliacao: true,
+                peso: true,
+                altura: true,
+                resultados: true,
+              },
+            },
+          },
         },
         avaliador: {
           select: { id: true, name: true, email: true },
@@ -248,6 +278,15 @@ router.post('/:id/enviar-email', async (req, res) => {
       return res.status(400).json({ error: 'Informe um endereço de e-mail válido para o envio.' });
     }
 
+    const infoEnvio = await enviarEmailComLaudoPdf({
+      destinatario: emailDestino,
+      assunto,
+      mensagem,
+      avaliacao,
+      historicoAvaliacoes: avaliacao.aluno?.avaliacoes || [],
+      smtpConfig,
+    });
+
     const resultadosAtuais =
       avaliacao.resultados && typeof avaliacao.resultados === 'object'
         ? avaliacao.resultados
@@ -255,7 +294,9 @@ router.post('/:id/enviar-email', async (req, res) => {
 
     const registroEnvio = {
       enviadoPara: emailDestino,
-      assunto: assunto || `Relatório de Avaliação Física - ${avaliacao.aluno?.nome || 'Aluno'}`,
+      remetente: infoEnvio.remetente,
+      anexoPdf: infoEnvio.filename,
+      assunto: assunto || `Laudo Técnico de Avaliação Física — ${avaliacao.aluno?.nome || 'Aluno'}`,
       enviadoEm: new Date().toISOString(),
       enviadoPor: req.user?.name || avaliacao.avaliador?.name || 'Avaliador',
     };
@@ -271,13 +312,20 @@ router.post('/:id/enviar-email', async (req, res) => {
     });
 
     res.status(200).json({
-      message: `Relatório de avaliação enviado com sucesso para ${emailDestino}!`,
+      message: `Laudo em PDF enviado com sucesso para ${emailDestino}!`,
       envio: registroEnvio,
-      resumo: mensagem || null,
     });
   } catch (error) {
     console.error(`Erro ao enviar relatório da avaliação ${id} por e-mail:`, error);
-    res.status(500).json({ error: 'Não foi possível processar o envio do relatório por e-mail.' });
+    if (error.code === 'SMTP_NOT_CONFIGURED') {
+      return res.status(400).json({
+        error: error.message.replace('SMTP_NOT_CONFIGURED: ', ''),
+        code: 'SMTP_NOT_CONFIGURED',
+      });
+    }
+    res.status(500).json({
+      error: `Falha no envio SMTP: ${error.message || 'Verifique o e-mail remetente e a Senha de App configurados.'}`,
+    });
   }
 });
 
